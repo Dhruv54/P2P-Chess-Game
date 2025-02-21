@@ -1,0 +1,31 @@
+{
+  "name": "chess",
+  "main": "index.html",
+  "pear": {
+    "name": "chess",
+    "type": "desktop",
+    "gui": {
+      "backgroundColor": "#001601",
+      "height": 816,
+      "width": 1536,
+      "minHeight": 816,
+      "minWidth": 1536,
+      "title": "Chess Game"
+    }
+  },
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "pear run -d .",
+    "test": "brittle test/*.test.js"
+  },
+  "devDependencies": {
+    "brittle": "^3.0.0",
+    "pear-interface": "^1.0.0"
+  },
+  "dependencies": {
+    "b4a": "^1.6.7",
+    "hypercore-crypto": "^3.5.0",
+    "hyperswarm": "^4.8.4"
+  }
+}
