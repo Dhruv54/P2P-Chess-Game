@@ -1,384 +1,64 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      pear-ctrl[data-platform="darwin"] { margin-top: 12px; margin-left: 10px; }
-
-      #titlebar {
-        -webkit-app-region: drag;
-        height: 30px;
-        width: 100%;
-        position: fixed;
-        left: 0;
-        top: 0;
-        background-color: #B0D94413;
-        filter: drop-shadow(2px 10px 6px #888);
-        z-index: 1000;
-      }
-
-      button, input {
-        all: unset;
-        border: 1px ridge #B0D944;
-        background: #000;
-        color: #B0D944;
-        padding: .45rem;
-        font-family: monospace;
-        font-size: 1rem;
-        line-height: 1rem;
-      }
-
-      body {
-        background-color: #001601;
-        font-family: monospace;
-        margin: 0;
-        padding: 0;
-        width: 100vw;
-        height: 100vh;
-        overflow: hidden;
-      }
-
-      main {
-        display: flex;
-        height: 100vh;
-        width: 100vw;
-        color: white;
-        padding-top: 30px; /* Account for titlebar */
-        position: relative;
-      }
-
-      .hidden {
-        display: none !important;
-      }
-
-      #setup {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 24px;
-        padding: 40px;
-        background: rgba(0, 22, 1, 0.95);
-        border: 1px solid #B0D944;
-        border-radius: 8px;
-        width: 400px;
-        box-shadow: 0 4px 20px rgba(176, 217, 68, 0.2);
-      }
-
-      #setup button {
-        width: 100%;
-        text-align: center;
-        padding: 12px;
-        font-size: 1.2em;
-        transition: all 0.2s ease;
-        border-radius: 4px;
-      }
-
-      #setup button:hover {
-        background-color: #B0D944;
-        color: #000;
-      }
-
-      #setup #join-form {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        margin-right: 25px;
-      }
-
-      #setup #join-form input {
-        width: 100%;
-        padding: 12px;
-        text-align: center;
-        border-radius: 4px;
-      }
-
-      #or {
-        margin: 0;
-        color: #B0D944;
-        font-size: 1.2em;
-      }
-
-      .room-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        width: 100%;
-      }
-
-      .room-info input {
-        flex: 1;
-        padding: 8px;
-        font-family: monospace;
-        border-radius: 4px;
-        background: #001601;
-        border: 1px solid #B0D944;
-        color: #B0D944;
-      }
-
-      .copy-button {
-        padding: 8px 12px !important;
-        width: auto !important;
-        font-size: 1em !important;
-      }
-
-      .tooltip {
-        position: absolute;
-        background: #B0D944;
-        color: #000;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.8em;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-      }
-
-      .tooltip.visible {
-        opacity: 1;
-      }
-
-      #loading {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 1.5em;
-        color: #B0D944;
-        padding: 20px;
-        background: rgba(0, 22, 1, 0.95);
-        border: 1px solid #B0D944;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(176, 217, 68, 0.2);
-      }
-
-      #loading::after {
-        content: '...';
-        animation: dots 1.5s steps(4, end) infinite;
-      }
-
-      @keyframes dots {
-        0%, 20% { content: ''; }
-        40% { content: '.'; }
-        60% { content: '..'; }
-        80%, 100% { content: '...'; }
-      }
-
-      #game-container {
-        display: flex;
-        width: 100%;
-        height: calc(100vh - 30px);
-        gap: 20px;
-        padding: 20px;
-      }
-
-      #game-area {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-width: 0; /* Prevent flex item from overflowing */
-      }
-
-      #chat {
-        width: 350px;
-        display: flex;
-        flex-direction: column;
-        padding: .75rem;
-        border-left: 1px solid #B0D944;
-        height: 100%;
-      }
-
-      #header {
-        margin-bottom: 0.75rem;
-      }
-
-      #details {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      #messages {
-        flex: 1;
-        font-family: 'Courier New', Courier, monospace;
-        overflow-y: auto;
-        margin: 10px 0;
-        padding: 10px;
-        border: 1px solid #B0D944;
-        scrollbar-width: thin;
-        scrollbar-color: #B0D944 #001601;
-      }
-
-      /* Webkit scrollbar styling */
-      #messages::-webkit-scrollbar {
-        width: 8px;
-      }
-
-      #messages::-webkit-scrollbar-track {
-        background: #001601;
-      }
-
-      #messages::-webkit-scrollbar-thumb {
-        background: #B0D944;
-        border-radius: 4px;
-      }
-
-      #message-form {
-        display: flex;
-        gap: 10px;
-        margin-top: 10px;
-      }
-
-      #message {
-        flex: 1;
-      }
-
-      /* Chess board styles */
-      .chess-board {
-        width: 640px;
-        height: 640px;
-        margin: 20px auto;
-        border: 2px solid #B0D944;
-        display: grid;
-        grid-template-columns: repeat(8, 1fr);
-        position: relative;
-      }
-
-      .chess-square {
-        width: 80px;
-        height: 80px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        position: relative;
-      }
-
-      .chess-piece {
-        width: 65px;
-        height: 65px;
-        cursor: move;
-        user-select: none;
-        -webkit-user-drag: element;
-        position: relative;
-        z-index: 1;
-      }
-
-      .chess-piece.dragging {
-        opacity: 0.6;
-        z-index: 1000;
-      }
-
-      .chess-square.valid-drop {
-        background: rgba(176, 217, 68, 0.4) !important;
-      }
-
-      .chess-square.selected {
-        background: rgba(176, 217, 68, 0.3) !important;
-      }
-
-      .white {
-        background: #EEEED2;
-      }
-
-      .black {
-        background: #769656;
-      }
-
-      #game-status {
-        color: #B0D944;
-        text-align: center;
-        margin: 10px 0;
-        font-size: 1.5em;
-        padding: 10px;
-        background: rgba(0, 22, 1, 0.8);
-        border: 1px solid #B0D944;
-        border-radius: 4px;
-      }
-
-      #debug-panel {
-        position: fixed;
-        bottom: 0;
-        right: 0;
-        width: 300px;
-        max-height: 200px;
-        background: rgba(0, 0, 0, 0.9);
-        color: #B0D944;
-        padding: 10px;
-        font-family: monospace;
-        font-size: 12px;
-        overflow-y: auto;
-        z-index: 1000;
-        border-top: 1px solid #B0D944;
-        border-left: 1px solid #B0D944;
-      }
-
-      #debug-panel .debug-entry {
-        margin: 2px 0;
-        padding: 2px 0;
-        border-bottom: 1px solid rgba(176, 217, 68, 0.2);
-      }
-
-      #debug-panel .error {
-        color: #ff6b6b;
-      }
-
-      #debug-panel .success {
-        color: #B0D944;
-      }
-
-      #debug-panel .info {
-        color: #4dabf7;
-      }
-    </style>
+    <!-- External stylesheet and JavaScript module for the chess game -->
+    <link rel="stylesheet" href="./styles.css">
     <script type='module' src='./app.js'></script>
   </head>
   <body>
+    <!-- Debug panel for development purposes -->
     <div id="debug-panel"></div>
+
+    <!-- Custom title bar for the application window -->
     <div id="titlebar">
       <pear-ctrl></pear-ctrl>
     </div>
+
     <main>
+      <!-- Initial setup screen for creating or joining a game room -->
       <div id="setup">
+        <!-- Button to create a new game room -->
         <button id="create-chat-room">Create Game Room</button>
         <div id="or">or</div>
+        <!-- Form for joining an existing game room -->
         <form id="join-form">
           <input id="join-chat-room-topic" placeholder="Enter room topic" required>
           <button type="submit">Join Game Room</button>
         </form>
       </div>
 
+      <!-- Loading indicator shown during connection -->
       <div id="loading" class="hidden">
         Connecting...
       </div>
 
+      <!-- Main game container (hidden initially) -->
       <div id="game-container" class="hidden">
+        <!-- Left side: Chess game area -->
         <div id="game-area">
+          <!-- Display for game status (current turn, check/checkmate, etc.) -->
           <div id="game-status"></div>
+          <!-- Chess board where the actual game is played -->
           <div id="chess-board" class="chess-board"></div>
         </div>
         
+        <!-- Right side: Chat and room information -->
         <div id="chat">
+          <!-- Header section with room details -->
           <div id="header">
             <div id="details">
+              <!-- Room topic display with copy functionality -->
               <div class="room-info">
                 <input type="text" id="room-topic-display" readonly>
                 <button class="copy-button" onclick="copyRoomTopic()">Copy</button>
               </div>
+              <!-- Display count of connected players -->
               <div>Connected Peers: <span id="peers-count">0</span></div>
             </div>
           </div>
+          <!-- Chat messages container -->
           <div id="messages"></div>
+          <!-- Form for sending new chat messages -->
           <form id="message-form">
             <input id="message" placeholder="Type a message..." required>
             <button type="submit">Send</button>
