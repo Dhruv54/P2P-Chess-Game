@@ -1,14 +1,17 @@
+/* Global Reset */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* Platform-specific control styling for macOS */
 pear-ctrl[data-platform="darwin"] {
   margin-top: 12px;
   margin-left: 10px;
 }
 
+/* Custom window titlebar */
 #titlebar {
   -webkit-app-region: drag;
   height: 30px;
@@ -21,6 +24,7 @@ pear-ctrl[data-platform="darwin"] {
   z-index: 1000;
 }
 
+/* Global form elements styling */
 button,
 input {
   all: unset;
@@ -33,6 +37,7 @@ input {
   line-height: 1rem;
 }
 
+/* Main body styling */
 body {
   background-color: #001601;
   font-family: monospace;
@@ -43,20 +48,22 @@ body {
   overflow: hidden;
 }
 
+/* Main container layout */
 main {
   display: flex;
   height: 100vh;
   width: 100vw;
   color: white;
-  padding-top: 30px;
-  /* Account for titlebar */
+  padding-top: 30px; /* Account for titlebar */
   position: relative;
 }
 
+/* Utility class for hiding elements */
 .hidden {
   display: none !important;
 }
 
+/* Initial Setup Screen Styles */
 #setup {
   position: absolute;
   top: 50%;
@@ -74,6 +81,7 @@ main {
   box-shadow: 0 4px 20px rgba(176, 217, 68, 0.2);
 }
 
+/* Setup screen button styles */
 #setup button {
   width: 100%;
   text-align: center;
@@ -88,6 +96,7 @@ main {
   color: #000;
 }
 
+/* Join game form styles */
 #setup #join-form {
   width: 100%;
   display: flex;
@@ -103,12 +112,14 @@ main {
   border-radius: 4px;
 }
 
+/* Room creation/joining divider */
 #or {
   margin: 0;
   color: #B0D944;
   font-size: 1.2em;
 }
 
+/* Room Information Display */
 .room-info {
   display: flex;
   align-items: center;
@@ -126,12 +137,14 @@ main {
   color: #B0D944;
 }
 
+/* Copy button override styles */
 .copy-button {
   padding: 8px 12px !important;
   width: auto !important;
   font-size: 1em !important;
 }
 
+/* Tooltip styles for copy feedback */
 .tooltip {
   position: absolute;
   background: #B0D944;
@@ -148,6 +161,7 @@ main {
   opacity: 1;
 }
 
+/* Loading screen styles */
 #loading {
   position: absolute;
   top: 50%;
@@ -162,32 +176,20 @@ main {
   box-shadow: 0 4px 20px rgba(176, 217, 68, 0.2);
 }
 
+/* Loading animation */
 #loading::after {
   content: '...';
   animation: dots 1.5s steps(4, end) infinite;
 }
 
 @keyframes dots {
-
-  0%,
-  20% {
-    content: '';
-  }
-
-  40% {
-    content: '.';
-  }
-
-  60% {
-    content: '..';
-  }
-
-  80%,
-  100% {
-    content: '...';
-  }
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80%, 100% { content: '...'; }
 }
 
+/* Main Game Container Layout */
 #game-container {
   display: flex;
   width: 100%;
@@ -196,16 +198,17 @@ main {
   padding: 20px;
 }
 
+/* Game Board Area Styles */
 #game-area {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 0;
-  /* Prevent flex item from overflowing */
+  min-width: 0; /* Prevent flex item from overflowing */
 }
 
+/* Chat Section Styles */
 #chat {
   width: 350px;
   display: flex;
@@ -225,6 +228,7 @@ main {
   gap: 10px;
 }
 
+/* Chat Messages Area */
 #messages {
   flex: 1;
   font-family: 'Courier New', Courier, monospace;
@@ -236,7 +240,7 @@ main {
   scrollbar-color: #B0D944 #001601;
 }
 
-/* Webkit scrollbar styling */
+/* Custom Scrollbar Styling */
 #messages::-webkit-scrollbar {
   width: 8px;
 }
@@ -250,6 +254,7 @@ main {
   border-radius: 4px;
 }
 
+/* Message Input Form */
 #message-form {
   display: flex;
   gap: 10px;
@@ -260,7 +265,7 @@ main {
   flex: 1;
 }
 
-/* Chess board styles */
+/* Chess Board Layout and Styling */
 .chess-board {
   width: 640px;
   height: 640px;
@@ -271,6 +276,7 @@ main {
   position: relative;
 }
 
+/* Chess Square Styling */
 .chess-square {
   width: 80px;
   height: 80px;
@@ -280,6 +286,7 @@ main {
   position: relative;
 }
 
+/* Chess Piece Styling */
 .chess-piece {
   width: 65px;
   height: 65px;
@@ -290,6 +297,7 @@ main {
   z-index: 1;
 }
 
+/* Drag and Drop Visual States */
 .chess-piece.dragging {
   opacity: 0.6;
   z-index: 1000;
@@ -303,6 +311,7 @@ main {
   background: rgba(176, 217, 68, 0.3) !important;
 }
 
+/* Chess Board Colors */
 .white {
   background: #EEEED2;
 }
@@ -311,6 +320,7 @@ main {
   background: #769656;
 }
 
+/* Game Status Display */
 #game-status {
   color: #B0D944;
   text-align: center;
@@ -322,6 +332,7 @@ main {
   border-radius: 4px;
 }
 
+/* Debug Panel Styling */
 #debug-panel {
   position: fixed;
   bottom: 0;
@@ -339,6 +350,7 @@ main {
   border-left: 1px solid #B0D944;
 }
 
+/* Debug Message Types */
 #debug-panel .debug-entry {
   margin: 2px 0;
   padding: 2px 0;
