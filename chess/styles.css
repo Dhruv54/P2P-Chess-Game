@@ -35,6 +35,21 @@ input {
   font-family: monospace;
   font-size: 1rem;
   line-height: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background-color: #B0D944;
+  color: #000;
+}
+
+input {
+  cursor: text;
+}
+
+input:focus {
+  border-color: #fff;
 }
 
 /* Main body styling */
@@ -46,6 +61,7 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  color: #B0D944;
 }
 
 /* Main container layout */
@@ -53,14 +69,170 @@ main {
   display: flex;
   height: 100vh;
   width: 100vw;
-  color: white;
   padding-top: 30px; /* Account for titlebar */
   position: relative;
+}
+
+/* Stage common styles */
+.stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 22, 1, 0.95);
+  border: 1px solid #B0D944;
+  border-radius: 8px;
+  padding: 2rem;
+  min-width: 400px;
+  text-align: center;
+}
+
+.stage h2 {
+  margin-bottom: 2rem;
+  font-size: 1.5em;
+}
+
+/* Stage 1: Room Selection */
+#stage-room-selection .stage-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+#stage-room-selection button {
+  width: 200px;
+  padding: 1rem;
+  font-size: 1.2em;
+}
+
+.divider {
+  font-size: 1.2em;
+  color: #666;
+}
+
+/* Stage 2: Room Setup */
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.setup-form input {
+  width: 100%;
+  text-align: center;
+}
+
+.room-code-display {
+  margin: 1rem 0;
+}
+
+.waiting-text {
+  margin-top: 1rem;
+  color: #666;
+}
+
+/* Stage 3: Color Selection */
+.color-options {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+.color-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.color-btn img {
+  width: 80px;
+  height: 80px;
+}
+
+.color-btn:hover {
+  transform: translateY(-5px);
+}
+
+.status-message {
+  margin-top: 1rem;
+  color: #ff6b6b;
+}
+
+/* Stage 4: Game Interface */
+#game-container {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 30px);
+  gap: 20px;
+  padding: 20px;
+}
+
+#game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgba(0, 22, 1, 0.8);
+  border: 1px solid #B0D944;
+  border-radius: 4px;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.player-info .username {
+  font-weight: bold;
+}
+
+.player-info .color {
+  color: #666;
 }
 
 /* Utility class for hiding elements */
 .hidden {
   display: none !important;
+}
+
+/* Loading overlay */
+#loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 22, 1, 0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  z-index: 2000;
+}
+
+.loader {
+  width: 48px;
+  height: 48px;
+  border: 5px solid #B0D944;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Initial Setup Screen Styles */

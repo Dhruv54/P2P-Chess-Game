@@ -1,10 +1,7 @@
 /**
- * P2P Chess Game Implementation
- * This file implements a peer-to-peer chess game using Hyperswarm for networking.
- * Players can create or join game rooms and play chess while chatting.
+ * P2P Chess Game Implementation with Multi-stage Flow
  */
 
-// Enable TypeScript-like hints for better code completion
 /** @typedef {import('pear-interface')} */
 
 /* global Pear */
@@ -17,19 +14,387 @@ const { teardown, updates } = Pear
 const swarm = new Hyperswarm()
 
 // Game state variables
-let playerColor = null // 'white' or 'black'
-let selectedSquare = null // Currently selected square for piece movement
-let draggedPiece = null // Piece being dragged
-let draggedPieceElement = null // DOM element of dragged piece
-let gameState = {
+const gameState = {
+  stage: 'room-selection',
+  username: null,
+  playerColor: null,
+  opponentInfo: {
+    username: null,
+    color: null
+  },
   board: initializeBoard(),
-  currentTurn: 'white', // Track whose turn it is
-  gameStarted: false // Game status flag
+  currentTurn: 'white',
+  gameStarted: false,
+  roomCode: null,
+  isRoomCreator: false
 }
+
+let selectedSquare = null
+let draggedPiece = null
+let draggedPieceElement = null
 
 // Cleanup handlers
 teardown(() => swarm.destroy())
 updates(() => Pear.reload())
+
+/**
+ * Debug utility to display messages in the debug panel
+ * @param {string} message - Message to display
+ * @param {string} type - Message type ('info', 'error', 'success')
+ */
+function debug(message, type = 'info') {
+  const debugPanel = document.getElementById('debug-panel')
+  if (!debugPanel) return // Early return if debug panel doesn't exist
+  
+  const entry = document.createElement('div')
+  entry.className = `debug-entry ${type}`
+  entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`
+  debugPanel.appendChild(entry)
+  debugPanel.scrollTop = debugPanel.scrollHeight
+  console.log(`[${type}] ${message}`)
+
+  // Limit debug messages to last 50
+  while (debugPanel.children.length > 50) {
+    debugPanel.removeChild(debugPanel.firstChild)
+  }
+}
+
+// Initialize UI when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    debug('Initializing game UI...')
+    initializeUI()
+    setupEventListeners()
+    debug('Game UI initialized successfully', 'success')
+  } catch (error) {
+    debug(`Error initializing game UI: ${error.message}`, 'error')
+    console.error('Initialization error:', error)
+  }
+})
+
+// Stage navigation
+function showStage(stageName) {
+  try {
+    debug(`Attempting to show stage: ${stageName}`)
+    
+    // Hide all stages first
+    const stages = document.querySelectorAll('.stage')
+    if (!stages.length) {
+      throw new Error('No stage elements found')
+    }
+    
+    stages.forEach(stage => {
+      stage.classList.add('hidden')
+      debug(`Hidden stage: ${stage.id}`)
+    })
+    
+    // Show the requested stage
+    const targetStage = document.getElementById(`stage-${stageName}`)
+    if (!targetStage) {
+      throw new Error(`Stage not found: ${stageName}`)
+    }
+    
+    targetStage.classList.remove('hidden')
+    gameState.stage = stageName
+    debug(`Successfully switched to stage: ${stageName}`, 'success')
+    
+  } catch (error) {
+    debug(`Error showing stage ${stageName}: ${error.message}`, 'error')
+    console.error('Stage navigation error:', error)
+  }
+}
+
+function initializeUI() {
+  // Ensure all required elements exist
+  const requiredElements = [
+    'debug-panel',
+    'stage-room-selection',
+    'stage-room-setup',
+    'stage-color-selection',
+    'stage-game',
+    'loading'
+  ]
+  
+  const missingElements = requiredElements.filter(id => !document.getElementById(id))
+  if (missingElements.length) {
+    throw new Error(`Missing required elements: ${missingElements.join(', ')}`)
+  }
+  
+  // Show initial stage
+  showStage('room-selection')
+}
+
+function setupEventListeners() {
+  try {
+    // Stage 1: Room Selection
+    const createRoomBtn = document.getElementById('create-room-btn')
+    const joinRoomBtn = document.getElementById('join-room-btn')
+    
+    if (!createRoomBtn || !joinRoomBtn) {
+      throw new Error('Room selection buttons not found')
+    }
+    
+    createRoomBtn.addEventListener('click', () => {
+      showStage('room-setup')
+      document.getElementById('create-room-form').classList.remove('hidden')
+      document.getElementById('join-room-form').classList.add('hidden')
+    })
+    
+    joinRoomBtn.addEventListener('click', () => {
+      showStage('room-setup')
+      document.getElementById('join-room-form').classList.remove('hidden')
+      document.getElementById('create-room-form').classList.add('hidden')
+    })
+
+    // Stage 2: Room Setup
+    setupRoomEventListeners()
+    
+    // Stage 3: Color Selection
+    setupColorSelectionListeners()
+    
+    // Stage 4: Game Interface
+    setupGameInterfaceListeners()
+    
+    debug('Event listeners setup completed', 'success')
+  } catch (error) {
+    debug(`Error setting up event listeners: ${error.message}`, 'error')
+    console.error('Event listener setup error:', error)
+  }
+}
+
+function setupRoomEventListeners() {
+  const createRoomSubmit = document.getElementById('create-room-submit')
+  const joinRoomSubmit = document.getElementById('join-room-submit')
+  const copyRoomCode = document.getElementById('copy-room-code')
+  
+  createRoomSubmit.addEventListener('click', async (e) => {
+    e.preventDefault()
+    const username = document.getElementById('create-username').value.trim()
+    if (!username) {
+      debug('Username is required', 'error')
+      return
+    }
+
+    gameState.username = username
+    gameState.isRoomCreator = true
+    
+    // Generate room code
+    const topicBuffer = crypto.randomBytes(32)
+    gameState.roomCode = b4a.toString(topicBuffer, 'hex')
+    
+    // Show room code and waiting message
+    document.getElementById('room-code-display').value = gameState.roomCode
+    document.getElementById('room-code-display-container').classList.remove('hidden')
+    createRoomSubmit.classList.add('hidden')
+    
+    // Join swarm and wait for opponent
+    await joinSwarm(topicBuffer)
+  })
+  
+  joinRoomSubmit.addEventListener('click', async (e) => {
+    e.preventDefault()
+    const username = document.getElementById('join-username').value.trim()
+    const roomCode = document.getElementById('room-code-input').value.trim()
+    
+    if (!username || !roomCode) {
+      debug('Username and room code are required', 'error')
+      return
+    }
+
+    gameState.username = username
+    gameState.roomCode = roomCode
+    
+    try {
+      const topicBuffer = b4a.from(roomCode, 'hex')
+      await joinSwarm(topicBuffer)
+    } catch (err) {
+      debug('Invalid room code', 'error')
+    }
+  })
+  
+  copyRoomCode.addEventListener('click', async () => {
+    const roomCode = document.getElementById('room-code-display').value
+    await navigator.clipboard.writeText(roomCode)
+    debug('Room code copied to clipboard', 'success')
+  })
+}
+
+function setupColorSelectionListeners() {
+  const whiteBtn = document.getElementById('select-white')
+  const blackBtn = document.getElementById('select-black')
+  
+  whiteBtn.addEventListener('click', () => selectColor('white'))
+  blackBtn.addEventListener('click', () => selectColor('black'))
+}
+
+function setupGameInterfaceListeners() {
+  const messageForm = document.getElementById('message-form')
+  messageForm.addEventListener('submit', sendMessage)
+}
+
+// P2P Communication
+swarm.on('connection', (peer) => {
+  // Only allow 2 peers in a room
+  if (swarm.connections.size > 1) {
+    peer.destroy()
+    return
+  }
+
+  peer.on('data', data => {
+    try {
+      const message = JSON.parse(b4a.toString(data))
+      
+      switch (message.type) {
+        case 'color-selection':
+          handleColorSelection(message)
+          break
+        case 'move':
+          handleGameMessage(message)
+          break
+        case 'chat':
+          handleChatMessage(message)
+          break
+      }
+    } catch (e) {
+      debug(`Error handling message: ${e.message}`, 'error')
+    }
+  })
+  
+  peer.on('error', e => debug(`Connection error: ${e}`, 'error'))
+})
+
+function handleColorSelection(message) {
+  gameState.opponentInfo.username = message.username
+  gameState.opponentInfo.color = message.color
+  
+  // Check for color conflict
+  if (gameState.playerColor === message.color) {
+    debug('Color conflict detected', 'error')
+    document.getElementById('color-selection-status').textContent = 
+      'Both players selected the same color. Please choose again.'
+    document.querySelectorAll('.color-btn').forEach(btn => btn.disabled = false)
+    gameState.playerColor = null
+    return
+  }
+  
+  // If both players have selected colors, start the game
+  if (gameState.playerColor && gameState.opponentInfo.color) {
+    startGame()
+  }
+}
+
+function handleChatMessage(message) {
+  const { username, text } = message
+  onMessageAdded(username, text)
+}
+
+swarm.on('update', () => {
+  document.querySelector('#peers-count').textContent = swarm.connections.size
+  
+  if (swarm.connections.size === 1) {
+    // When opponent connects, proceed to color selection
+    showStage('color-selection')
+  }
+})
+
+async function joinSwarm(topicBuffer) {
+  showLoading('Connecting to game network...')
+  
+  try {
+    const discovery = swarm.join(topicBuffer, { client: true, server: true })
+    await discovery.flushed()
+    hideLoading()
+    
+    if (gameState.isRoomCreator) {
+      document.getElementById('loading-text').textContent = 'Waiting for opponent...'
+    }
+  } catch (err) {
+    debug(`Failed to join swarm: ${err.message}`, 'error')
+    hideLoading()
+  }
+}
+
+function startGame() {
+  gameState.gameStarted = true
+  showStage('game')
+  
+  // Update player info displays
+  updatePlayerInfo('player-info', gameState.username, gameState.playerColor)
+  updatePlayerInfo('opponent-info', gameState.opponentInfo.username, gameState.opponentInfo.color)
+  
+  createChessBoard()
+  updateGameStatus()
+}
+
+function updatePlayerInfo(elementId, username, color) {
+  const element = document.getElementById(elementId)
+  element.querySelector('.username').textContent = username
+  element.querySelector('.color').textContent = `Playing as ${color}`
+}
+
+// Chat functionality
+function sendMessage(e) {
+  e.preventDefault()
+  const messageInput = document.querySelector('#message')
+  const text = messageInput.value.trim()
+  
+  if (!text) return
+  
+  const message = {
+    type: 'chat',
+    username: gameState.username,
+    text: text
+  }
+  
+  // Send to all peers
+  const peers = [...swarm.connections]
+  for (const peer of peers) {
+    peer.write(b4a.from(JSON.stringify(message)))
+  }
+  
+  // Add to local chat
+  onMessageAdded(gameState.username, text)
+  messageInput.value = ''
+}
+
+function onMessageAdded(username, text) {
+  const $div = document.createElement('div')
+  $div.className = 'message'
+  $div.textContent = `${username}: ${text}`
+  document.querySelector('#messages').appendChild($div)
+  
+  // Auto-scroll to bottom
+  const messages = document.querySelector('#messages')
+  messages.scrollTop = messages.scrollHeight
+}
+
+// Loading overlay
+function showLoading(text = 'Loading...') {
+  document.getElementById('loading').classList.remove('hidden')
+  document.getElementById('loading-text').textContent = text
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.add('hidden')
+}
+
+// Copy room code functionality
+window.copyRoomCode = async function() {
+  const roomCode = document.getElementById('room-code-display').value
+  await navigator.clipboard.writeText(roomCode)
+  
+  const button = document.querySelector('.copy-button')
+  const tooltip = document.createElement('div')
+  tooltip.className = 'tooltip'
+  tooltip.textContent = 'Copied!'
+  
+  button.appendChild(tooltip)
+  setTimeout(() => tooltip.classList.add('visible'), 0)
+  setTimeout(() => {
+    tooltip.classList.remove('visible')
+    setTimeout(() => tooltip.remove(), 200)
+  }, 1500)
+}
 
 // Chess piece image mappings for both colors
 const PIECES = {
@@ -75,36 +440,16 @@ function initializeBoard() {
 }
 
 /**
- * Debug utility to display messages in the debug panel
- * @param {string} message - Message to display
- * @param {string} type - Message type ('info', 'error', 'success')
- */
-function debug(message, type = 'info') {
-  const debugPanel = document.getElementById('debug-panel')
-  const entry = document.createElement('div')
-  entry.className = `debug-entry ${type}`
-  entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`
-  debugPanel.appendChild(entry)
-  debugPanel.scrollTop = debugPanel.scrollHeight
-  console.log(`[${type}] ${message}`)
-
-  // Limit debug messages to last 50
-  while (debugPanel.children.length > 50) {
-    debugPanel.removeChild(debugPanel.firstChild)
-  }
-}
-
-/**
  * Creates and renders the chess board UI
  * Handles piece placement, drag-and-drop, and click events
  */
 function createChessBoard() {
   const chessBoard = document.querySelector('#chess-board')
   chessBoard.innerHTML = ''
-  debug(`Creating board. Player color: ${playerColor}`)
+  debug(`Creating board. Player color: ${gameState.playerColor}`)
 
   gameState.gameStarted = true
-  const isBlack = playerColor === 'black'
+  const isBlack = gameState.playerColor === 'black'
 
   // Create the 8x8 grid of squares
   for (let row = 0; row < 8; row++) {
@@ -131,6 +476,27 @@ function createChessBoard() {
         // Setup drag and drop handlers for pieces
         img.addEventListener('dragstart', function (e) {
           debug(`Dragstart triggered on ${piece.color} ${piece.type} at ${actualRow},${actualCol}`)
+          
+          // Check game state
+          if (!gameState.gameStarted) {
+            debug('Cannot drag: Game not started', 'error')
+            e.preventDefault()
+            return false
+          }
+          
+          // Check turn
+          if (gameState.currentTurn !== gameState.playerColor) {
+            debug(`Cannot drag: Not your turn. Current turn: ${gameState.currentTurn}, Your color: ${gameState.playerColor}`, 'error')
+            e.preventDefault()
+            return false
+          }
+          
+          // Check piece color
+          if (piece.color !== gameState.playerColor) {
+            debug(`Cannot drag: Not your piece. Piece color: ${piece.color}, Your color: ${gameState.playerColor}`, 'error')
+            e.preventDefault()
+            return false
+          }
 
           draggedPiece = piece
           draggedPieceElement = this
@@ -233,12 +599,12 @@ function createChessBoard() {
  * Supports selecting pieces and making moves
  */
 function handleSquareClick(row, col) {
-  if (!gameState.gameStarted || gameState.currentTurn !== playerColor) return
+  if (!gameState.gameStarted || gameState.currentTurn !== gameState.playerColor) return
 
   const clickedPiece = gameState.board[row][col]
 
   if (selectedSquare) {
-    if (clickedPiece && clickedPiece.color === playerColor) {
+    if (clickedPiece && clickedPiece.color === gameState.playerColor) {
       // Select new piece
       selectSquare(row, col)
     } else {
@@ -249,7 +615,7 @@ function handleSquareClick(row, col) {
         broadcastMove(selectedRow, selectedCol, row, col)
       }
     }
-  } else if (clickedPiece && clickedPiece.color === playerColor) {
+  } else if (clickedPiece && clickedPiece.color === gameState.playerColor) {
     selectSquare(row, col)
   }
 }
@@ -364,74 +730,8 @@ function updateGameStatus() {
   if (!gameState.gameStarted) {
     status.textContent = 'Waiting for opponent...'
   } else {
-    const isYourTurn = gameState.currentTurn === playerColor
+    const isYourTurn = gameState.currentTurn === gameState.playerColor
     status.textContent = `${gameState.currentTurn.charAt(0).toUpperCase() + gameState.currentTurn.slice(1)}'s turn${isYourTurn ? ' (Your turn)' : ''}`
-  }
-}
-
-// P2P Communication Setup and Handlers
-
-/**
- * Handle new peer connections
- */
-swarm.on('connection', (peer) => {
-  // Limit to 2 players
-  if (swarm.connections.size > 1) {
-    peer.destroy()
-    return
-  }
-
-  const name = b4a.toString(peer.remotePublicKey, 'hex').substr(0, 6)
-
-  // Handle incoming messages
-  peer.on('data', data => {
-    try {
-      const message = JSON.parse(b4a.toString(data))
-      if (message.type === 'move') {
-        handleGameMessage(message)
-      } else {
-        onMessageAdded(name, b4a.toString(data))
-      }
-    } catch (e) {
-      // Non-JSON messages are treated as chat
-      onMessageAdded(name, b4a.toString(data))
-    }
-  })
-
-  peer.on('error', e => console.log(`Connection error: ${e}`))
-})
-
-/**
- * Handle peer connection updates
- */
-swarm.on('update', () => {
-  document.querySelector('#peers-count').textContent = swarm.connections.size
-
-  if (swarm.connections.size === 1 && !gameState.gameStarted) {
-    startGame()
-  }
-})
-
-/**
- * Initialize game when opponent joins
- */
-function startGame() {
-  gameState.gameStarted = true
-  playerColor = swarm.connections.size === 1 ? 'black' : 'white'
-  createChessBoard()
-  updateGameStatus()
-}
-
-/**
- * Handle incoming game messages from opponent
- */
-function handleGameMessage(message) {
-  switch (message.type) {
-    case 'move':
-      if (gameState.currentTurn !== playerColor) {
-        makeMove(message.fromRow, message.fromCol, message.toRow, message.toCol)
-      }
-      break
   }
 }
 
@@ -453,94 +753,15 @@ function broadcastMove(fromRow, fromCol, toRow, toCol) {
   }
 }
 
-// Event Listeners for UI Elements
-document.querySelector('#create-chat-room').addEventListener('click', createChatRoom)
-document.querySelector('#join-form').addEventListener('submit', joinChatRoom)
-document.querySelector('#message-form').addEventListener('submit', sendMessage)
-
 /**
- * Create a new game room with random topic
+ * Handle incoming game messages from opponent
  */
-async function createChatRoom() {
-  const topicBuffer = crypto.randomBytes(32)
-  joinSwarm(topicBuffer)
-}
-
-/**
- * Join an existing game room
- */
-async function joinChatRoom(e) {
-  e.preventDefault()
-  const topicStr = document.querySelector('#join-chat-room-topic').value
-  const topicBuffer = b4a.from(topicStr, 'hex')
-  joinSwarm(topicBuffer)
-}
-
-/**
- * Connect to the P2P network
- */
-async function joinSwarm(topicBuffer) {
-  document.querySelector('#setup').classList.add('hidden')
-  document.querySelector('#loading').classList.remove('hidden')
-
-  const discovery = swarm.join(topicBuffer, { client: true, server: true })
-  await discovery.flushed()
-
-  const topic = b4a.toString(topicBuffer, 'hex')
-  document.querySelector('#room-topic-display').value = topic
-  document.querySelector('#loading').classList.add('hidden')
-  document.querySelector('#game-container').classList.remove('hidden')
-
-  createChessBoard()
-  updateGameStatus()
-}
-
-/**
- * Send chat message to opponent
- */
-function sendMessage(e) {
-  e.preventDefault()
-  const message = document.querySelector('#message').value
-  document.querySelector('#message').value = ''
-
-  onMessageAdded('You', message)
-
-  const peers = [...swarm.connections]
-  for (const peer of peers) peer.write(b4a.from(message))
-}
-
-/**
- * Display chat message in the UI
- */
-function onMessageAdded(from, message) {
-  const $div = document.createElement('div')
-  $div.textContent = `<${from}> ${message}`
-  document.querySelector('#messages').appendChild($div)
-}
-
-/**
- * Copy room topic to clipboard and show feedback
- */
-window.copyRoomTopic = async function () {
-  const roomTopic = document.querySelector('#room-topic-display').value
-  await navigator.clipboard.writeText(roomTopic)
-
-  // Show tooltip
-  const button = document.querySelector('.copy-button')
-  const tooltip = document.createElement('div')
-  tooltip.className = 'tooltip'
-  tooltip.textContent = 'Copied!'
-  tooltip.style.top = '-30px'
-  tooltip.style.left = '50%'
-  tooltip.style.transform = 'translateX(-50%)'
-
-  button.style.position = 'relative'
-  button.appendChild(tooltip)
-
-  // Show and remove tooltip with animation
-  setTimeout(() => tooltip.classList.add('visible'), 0)
-  setTimeout(() => {
-    tooltip.classList.remove('visible')
-    setTimeout(() => tooltip.remove(), 200)
-  }, 1500)
+function handleGameMessage(message) {
+  switch (message.type) {
+    case 'move':
+      if (gameState.currentTurn !== gameState.playerColor) {
+        makeMove(message.fromRow, message.fromCol, message.toRow, message.toCol)
+      }
+      break
+  }
 }
