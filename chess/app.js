@@ -264,22 +264,30 @@ swarm.on('connection', (peer) => {
 })
 
 function handleColorSelection(message) {
-  gameState.opponentInfo.username = message.username
-  gameState.opponentInfo.color = message.color
-  
-  // Check for color conflict
-  if (gameState.playerColor === message.color) {
-    debug('Color conflict detected', 'error')
-    document.getElementById('color-selection-status').textContent = 
-      'Both players selected the same color. Please choose again.'
-    document.querySelectorAll('.color-btn').forEach(btn => btn.disabled = false)
-    gameState.playerColor = null
-    return
-  }
-  
-  // If both players have selected colors, start the game
-  if (gameState.playerColor && gameState.opponentInfo.color) {
-    startGame()
+  try {
+    debug(`Received color selection from opponent: ${message.color}`)
+    
+    gameState.opponentInfo.username = message.username
+    gameState.opponentInfo.color = message.color
+    
+    // Check for color conflict
+    if (gameState.playerColor === message.color) {
+      debug('Color conflict detected', 'error')
+      document.getElementById('color-selection-status').textContent = 
+        'Both players selected the same color. Please choose again.'
+      document.querySelectorAll('.color-btn').forEach(btn => btn.disabled = false)
+      gameState.playerColor = null
+      return
+    }
+    
+    // If both players have selected colors, start the game
+    if (gameState.playerColor && gameState.opponentInfo.color) {
+      debug('Both players have selected colors, starting game', 'success')
+      startGame()
+    }
+  } catch (error) {
+    debug(`Error handling color selection: ${error.message}`, 'error')
+    console.error('Color selection handling error:', error)
   }
 }
 
@@ -763,5 +771,48 @@ function handleGameMessage(message) {
         makeMove(message.fromRow, message.fromCol, message.toRow, message.toCol)
       }
       break
+  }
+}
+
+/**
+ * Handle color selection for a player
+ * @param {string} color - The selected color ('white' or 'black')
+ */
+function selectColor(color) {
+  try {
+    debug(`Player selected color: ${color}`)
+    
+    const message = {
+      type: 'color-selection',
+      username: gameState.username,
+      color: color
+    }
+    
+    // Send color selection to opponent
+    const peers = [...swarm.connections]
+    if (!peers.length) {
+      debug('No peers connected to send color selection', 'error')
+      return
+    }
+    
+    // Send to all peers
+    for (const peer of peers) {
+      peer.write(b4a.from(JSON.stringify(message)))
+    }
+    
+    // Update local state
+    gameState.playerColor = color
+    document.getElementById('color-selection-status').textContent = 'Waiting for opponent to choose...'
+    
+    // Disable color buttons
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.disabled = true
+      btn.classList.add('disabled')
+    })
+    
+    debug(`Color selection sent to opponent: ${color}`, 'success')
+  } catch (error) {
+    debug(`Error in color selection: ${error.message}`, 'error')
+    console.error('Color selection error:', error)
   }
 }
