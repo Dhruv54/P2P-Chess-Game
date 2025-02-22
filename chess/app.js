@@ -268,23 +268,34 @@ function handleColorSelection(message) {
     debug(`Received color selection from opponent: ${message.color}`)
     
     gameState.opponentInfo.username = message.username
-    gameState.opponentInfo.color = message.color
     
-    // Check for color conflict
-    if (gameState.playerColor === message.color) {
-      debug('Color conflict detected', 'error')
-      document.getElementById('color-selection-status').textContent = 
-        'Both players selected the same color. Please choose again.'
-      document.querySelectorAll('.color-btn').forEach(btn => btn.disabled = false)
-      gameState.playerColor = null
-      return
-    }
-    
-    // If both players have selected colors, start the game
-    if (gameState.playerColor && gameState.opponentInfo.color) {
-      debug('Both players have selected colors, starting game', 'success')
+    if (message.autoAssign) {
+      // Opponent has chosen their color, we get the opposite
+      const ourColor = message.color === 'white' ? 'black' : 'white'
+      gameState.playerColor = ourColor
+      gameState.opponentInfo.color = message.color
+      
+      // Send acknowledgment back
+      const acknowledgment = {
+        type: 'color-selection-ack',
+        username: gameState.username,
+        color: ourColor
+      }
+      
+      const peers = [...swarm.connections]
+      for (const peer of peers) {
+        peer.write(b4a.from(JSON.stringify(acknowledgment)))
+      }
+      
+      // Start the game immediately
+      debug(`Auto-assigned our color: ${ourColor}`, 'success')
+      startGame()
+    } else if (message.type === 'color-selection-ack') {
+      // Received acknowledgment from opponent, start the game
+      gameState.opponentInfo.color = message.color
       startGame()
     }
+    
   } catch (error) {
     debug(`Error handling color selection: ${error.message}`, 'error')
     console.error('Color selection handling error:', error)
@@ -323,21 +334,80 @@ async function joinSwarm(topicBuffer) {
 }
 
 function startGame() {
-  gameState.gameStarted = true
-  showStage('game')
-  
-  // Update player info displays
-  updatePlayerInfo('player-info', gameState.username, gameState.playerColor)
-  updatePlayerInfo('opponent-info', gameState.opponentInfo.username, gameState.opponentInfo.color)
-  
-  createChessBoard()
-  updateGameStatus()
+  try {
+    gameState.gameStarted = true
+    showStage('game')
+    
+    // Update player info displays
+    updatePlayerInfo('player-info', gameState.username, gameState.playerColor)
+    updatePlayerInfo('opponent-info', gameState.opponentInfo.username, gameState.opponentInfo.color)
+    
+    // Initialize the chess board
+    createChessBoard()
+    
+    // Update game status
+    updateGameStatus()
+    
+    debug('Game started successfully', 'success')
+    debug(`You are playing as ${gameState.playerColor}`)
+    debug(`Opponent (${gameState.opponentInfo.username}) is playing as ${gameState.opponentInfo.color}`)
+    
+  } catch (error) {
+    debug(`Error starting game: ${error.message}`, 'error')
+    console.error('Game start error:', error)
+  }
 }
 
-function updatePlayerInfo(elementId, username, color) {
-  const element = document.getElementById(elementId)
-  element.querySelector('.username').textContent = username
-  element.querySelector('.color').textContent = `Playing as ${color}`
+/**
+ * Handle color selection for a player
+ * @param {string} color - The selected color ('white' or 'black')
+ */
+function selectColor(color) {
+  try {
+    debug(`Player selected color: ${color}`)
+    
+    // Automatically determine opponent's color
+    const opponentColor = color === 'white' ? 'black' : 'white'
+    
+    const message = {
+      type: 'color-selection',
+      username: gameState.username,
+      color: color,
+      autoAssign: true // Flag to indicate automatic color assignment
+    }
+    
+    // Send color selection to opponent
+    const peers = [...swarm.connections]
+    if (!peers.length) {
+      debug('No peers connected to send color selection', 'error')
+      return
+    }
+    
+    // Send to all peers
+    for (const peer of peers) {
+      peer.write(b4a.from(JSON.stringify(message)))
+    }
+    
+    // Update local state
+    gameState.playerColor = color
+    gameState.opponentInfo.color = opponentColor // Pre-assign opponent's color
+    
+    // Disable all color buttons
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.disabled = true
+      btn.classList.add('disabled')
+    })
+    
+    debug(`Color selection sent to opponent: ${color}`, 'success')
+    debug(`Auto-assigned opponent color: ${opponentColor}`, 'info')
+    
+    // If we're the first to choose, wait for opponent's acknowledgment
+    document.getElementById('color-selection-status').textContent = 'Waiting for opponent to acknowledge...'
+    
+  } catch (error) {
+    debug(`Error in color selection: ${error.message}`, 'error')
+    console.error('Color selection error:', error)
+  }
 }
 
 // Chat functionality
@@ -775,44 +845,10 @@ function handleGameMessage(message) {
 }
 
 /**
- * Handle color selection for a player
- * @param {string} color - The selected color ('white' or 'black')
+ * Update player info displays
  */
-function selectColor(color) {
-  try {
-    debug(`Player selected color: ${color}`)
-    
-    const message = {
-      type: 'color-selection',
-      username: gameState.username,
-      color: color
-    }
-    
-    // Send color selection to opponent
-    const peers = [...swarm.connections]
-    if (!peers.length) {
-      debug('No peers connected to send color selection', 'error')
-      return
-    }
-    
-    // Send to all peers
-    for (const peer of peers) {
-      peer.write(b4a.from(JSON.stringify(message)))
-    }
-    
-    // Update local state
-    gameState.playerColor = color
-    document.getElementById('color-selection-status').textContent = 'Waiting for opponent to choose...'
-    
-    // Disable color buttons
-    document.querySelectorAll('.color-btn').forEach(btn => {
-      btn.disabled = true
-      btn.classList.add('disabled')
-    })
-    
-    debug(`Color selection sent to opponent: ${color}`, 'success')
-  } catch (error) {
-    debug(`Error in color selection: ${error.message}`, 'error')
-    console.error('Color selection error:', error)
-  }
+function updatePlayerInfo(elementId, username, color) {
+  const element = document.getElementById(elementId)
+  element.querySelector('.username').textContent = username
+  element.querySelector('.color').textContent = `Playing as ${color}`
 }
