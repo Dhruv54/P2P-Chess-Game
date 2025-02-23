@@ -110,7 +110,6 @@ function initializeUI() {
     'debug-panel',
     'stage-room-selection',
     'stage-room-setup',
-    'stage-color-selection',
     'stage-game',
     'loading'
   ]
@@ -148,9 +147,6 @@ function setupEventListeners() {
 
     // Stage 2: Room Setup
     setupRoomEventListeners()
-    
-    // Stage 3: Color Selection
-    setupColorSelectionListeners()
     
     // Stage 4: Game Interface
     setupGameInterfaceListeners()
@@ -219,14 +215,6 @@ function setupRoomEventListeners() {
   })
 }
 
-function setupColorSelectionListeners() {
-  const whiteBtn = document.getElementById('select-white')
-  const blackBtn = document.getElementById('select-black')
-  
-  whiteBtn.addEventListener('click', () => selectColor('white'))
-  blackBtn.addEventListener('click', () => selectColor('black'))
-}
-
 function setupGameInterfaceListeners() {
   const messageForm = document.getElementById('message-form')
   messageForm.addEventListener('submit', sendMessage)
@@ -240,14 +228,23 @@ swarm.on('connection', (peer) => {
     return
   }
 
+  debug('Peer connected', 'success')
+
+  // Automatically start game when peer connects
+  if (gameState.isRoomCreator) {
+    gameState.playerColor = 'white'
+    gameState.opponentInfo.color = 'black'
+  } else {
+    gameState.playerColor = 'black'
+    gameState.opponentInfo.color = 'white'
+  }
+  startGame()
+
   peer.on('data', data => {
     try {
       const message = JSON.parse(b4a.toString(data))
       
       switch (message.type) {
-        case 'color-selection':
-          handleColorSelection(message)
-          break
         case 'move':
           handleGameMessage(message)
           break
@@ -263,56 +260,21 @@ swarm.on('connection', (peer) => {
   peer.on('error', e => debug(`Connection error: ${e}`, 'error'))
 })
 
-function handleColorSelection(message) {
-  gameState.opponentInfo.username = message.username
-  gameState.opponentInfo.color = message.color
-  
-  // Check for color conflict
-  if (gameState.playerColor === message.color) {
-    debug('Color conflict detected', 'error')
-    document.getElementById('color-selection-status').textContent = 
-      'Both players selected the same color. Please choose again.'
-    document.querySelectorAll('.color-btn').forEach(btn => btn.disabled = false)
-    gameState.playerColor = null
-    return
-  }
-  
-  // If both players have selected colors, start the game
-  if (gameState.playerColor && gameState.opponentInfo.color) {
-    startGame()
-  }
-}
-
-function handleChatMessage(message) {
-  const { username, text } = message
-  onMessageAdded(username, text)
-}
-
 swarm.on('update', () => {
   document.querySelector('#peers-count').textContent = swarm.connections.size
   
   if (swarm.connections.size === 1) {
-    // When opponent connects, proceed to color selection
-    showStage('color-selection')
+    // When opponent connects, start the game immediately
+    if (gameState.isRoomCreator) {
+      gameState.playerColor = 'white'
+      gameState.opponentInfo.color = 'black'
+    } else {
+      gameState.playerColor = 'black'
+      gameState.opponentInfo.color = 'white'
+    }
+    startGame()
   }
 })
-
-async function joinSwarm(topicBuffer) {
-  showLoading('Connecting to game network...')
-  
-  try {
-    const discovery = swarm.join(topicBuffer, { client: true, server: true })
-    await discovery.flushed()
-    hideLoading()
-    
-    if (gameState.isRoomCreator) {
-      document.getElementById('loading-text').textContent = 'Waiting for opponent...'
-    }
-  } catch (err) {
-    debug(`Failed to join swarm: ${err.message}`, 'error')
-    hideLoading()
-  }
-}
 
 function startGame() {
   gameState.gameStarted = true
@@ -764,4 +726,26 @@ function handleGameMessage(message) {
       }
       break
   }
+}
+
+async function joinSwarm(topicBuffer) {
+  showLoading('Connecting to game network...')
+  
+  try {
+    const discovery = swarm.join(topicBuffer, { client: true, server: true })
+    await discovery.flushed()
+    hideLoading()
+    
+    if (gameState.isRoomCreator) {
+      document.getElementById('loading-text').textContent = 'Waiting for opponent...'
+    }
+  } catch (err) {
+    debug(`Failed to join swarm: ${err.message}`, 'error')
+    hideLoading()
+  }
+}
+
+function handleChatMessage(message) {
+  const { username, text } = message
+  onMessageAdded(username, text)
 }
