@@ -26,7 +26,8 @@ const gameState = {
   currentTurn: 'white',
   gameStarted: false,
   roomCode: null,
-  isRoomCreator: false
+  isRoomCreator: false,
+  isCheck: false
 }
 
 let selectedSquare = null
@@ -45,7 +46,7 @@ updates(() => Pear.reload())
 function debug(message, type = 'info') {
   const debugPanel = document.getElementById('debug-panel')
   if (!debugPanel) return // Early return if debug panel doesn't exist
-  
+
   const entry = document.createElement('div')
   entry.className = `debug-entry ${type}`
   entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`
@@ -76,28 +77,28 @@ document.addEventListener('DOMContentLoaded', () => {
 function showStage(stageName) {
   try {
     debug(`Attempting to show stage: ${stageName}`)
-    
+
     // Hide all stages first
     const stages = document.querySelectorAll('.stage')
     if (!stages.length) {
       throw new Error('No stage elements found')
     }
-    
+
     stages.forEach(stage => {
       stage.classList.add('hidden')
       debug(`Hidden stage: ${stage.id}`)
     })
-    
+
     // Show the requested stage
     const targetStage = document.getElementById(`stage-${stageName}`)
     if (!targetStage) {
       throw new Error(`Stage not found: ${stageName}`)
     }
-    
+
     targetStage.classList.remove('hidden')
     gameState.stage = stageName
     debug(`Successfully switched to stage: ${stageName}`, 'success')
-    
+
   } catch (error) {
     debug(`Error showing stage ${stageName}: ${error.message}`, 'error')
     console.error('Stage navigation error:', error)
@@ -105,6 +106,7 @@ function showStage(stageName) {
 }
 
 function initializeUI() {
+  playSound('gameBackgroundSound');
   // Ensure all required elements exist
   const requiredElements = [
     'debug-panel',
@@ -113,12 +115,12 @@ function initializeUI() {
     'stage-game',
     'loading'
   ]
-  
+
   const missingElements = requiredElements.filter(id => !document.getElementById(id))
   if (missingElements.length) {
     throw new Error(`Missing required elements: ${missingElements.join(', ')}`)
   }
-  
+
   // Show initial stage
   showStage('room-selection')
 }
@@ -128,17 +130,17 @@ function setupEventListeners() {
     // Stage 1: Room Selection
     const createRoomBtn = document.getElementById('create-room-btn')
     const joinRoomBtn = document.getElementById('join-room-btn')
-    
+
     if (!createRoomBtn || !joinRoomBtn) {
       throw new Error('Room selection buttons not found')
     }
-    
+
     createRoomBtn.addEventListener('click', () => {
       showStage('room-setup')
       document.getElementById('create-room-form').classList.remove('hidden')
       document.getElementById('join-room-form').classList.add('hidden')
     })
-    
+
     joinRoomBtn.addEventListener('click', () => {
       showStage('room-setup')
       document.getElementById('join-room-form').classList.remove('hidden')
@@ -147,10 +149,10 @@ function setupEventListeners() {
 
     // Stage 2: Room Setup
     setupRoomEventListeners()
-    
+
     // Stage 4: Game Interface
     setupGameInterfaceListeners()
-    
+
     debug('Event listeners setup completed', 'success')
   } catch (error) {
     debug(`Error setting up event listeners: ${error.message}`, 'error')
@@ -162,7 +164,7 @@ function setupRoomEventListeners() {
   const createRoomSubmit = document.getElementById('create-room-submit')
   const joinRoomSubmit = document.getElementById('join-room-submit')
   const copyRoomCode = document.getElementById('copy-room-code')
-  
+
   createRoomSubmit.addEventListener('click', async (e) => {
     e.preventDefault()
     const username = document.getElementById('create-username').value.trim()
@@ -173,25 +175,25 @@ function setupRoomEventListeners() {
 
     gameState.username = username
     gameState.isRoomCreator = true
-    
+
     // Generate room code
     const topicBuffer = crypto.randomBytes(32)
     gameState.roomCode = b4a.toString(topicBuffer, 'hex')
-    
+
     // Show room code and waiting message
     document.getElementById('room-code-display').value = gameState.roomCode
     document.getElementById('room-code-display-container').classList.remove('hidden')
     createRoomSubmit.classList.add('hidden')
-    
+
     // Join swarm and wait for opponent
     await joinSwarm(topicBuffer)
   })
-  
+
   joinRoomSubmit.addEventListener('click', async (e) => {
     e.preventDefault()
     const username = document.getElementById('join-username').value.trim()
     const roomCode = document.getElementById('room-code-input').value.trim()
-    
+
     if (!username || !roomCode) {
       debug('Username and room code are required', 'error')
       return
@@ -199,7 +201,7 @@ function setupRoomEventListeners() {
 
     gameState.username = username
     gameState.roomCode = roomCode
-    
+
     try {
       const topicBuffer = b4a.from(roomCode, 'hex')
       await joinSwarm(topicBuffer)
@@ -207,7 +209,7 @@ function setupRoomEventListeners() {
       debug('Invalid room code', 'error')
     }
   })
-  
+
   copyRoomCode.addEventListener('click', async () => {
     const roomCode = document.getElementById('room-code-display').value
     await navigator.clipboard.writeText(roomCode)
@@ -243,7 +245,7 @@ swarm.on('connection', (peer) => {
   peer.on('data', data => {
     try {
       const message = JSON.parse(b4a.toString(data))
-      
+
       switch (message.type) {
         case 'move':
           handleGameMessage(message)
@@ -256,13 +258,13 @@ swarm.on('connection', (peer) => {
       debug(`Error handling message: ${e.message}`, 'error')
     }
   })
-  
+
   peer.on('error', e => debug(`Connection error: ${e}`, 'error'))
 })
 
 swarm.on('update', () => {
   document.querySelector('#peers-count').textContent = swarm.connections.size
-  
+
   if (swarm.connections.size === 1) {
     // When opponent connects, start the game immediately
     if (gameState.isRoomCreator) {
@@ -279,13 +281,23 @@ swarm.on('update', () => {
 function startGame() {
   gameState.gameStarted = true
   showStage('game')
-  
+
   // Update player info displays
   updatePlayerInfo('player-info', gameState.username, gameState.playerColor)
   updatePlayerInfo('opponent-info', gameState.opponentInfo.username, gameState.opponentInfo.color)
-  
   createChessBoard()
-  updateGameStatus()
+  updateGameStatus();
+  playSound('gameStartSound');
+  debug('Game started', 'success');
+}
+
+// Sound functions
+function playSound(soundId) {
+  const sound = document.getElementById(soundId);
+  if (sound) {
+    sound.currentTime = 0; // Reset the audio to start
+    sound.play().catch(error => console.log('Error playing sound:', error));
+  }
 }
 
 function updatePlayerInfo(elementId, username, color) {
@@ -299,21 +311,21 @@ function sendMessage(e) {
   e.preventDefault()
   const messageInput = document.querySelector('#message')
   const text = messageInput.value.trim()
-  
+
   if (!text) return
-  
+
   const message = {
     type: 'chat',
     username: gameState.username,
     text: text
   }
-  
+
   // Send to all peers
   const peers = [...swarm.connections]
   for (const peer of peers) {
     peer.write(b4a.from(JSON.stringify(message)))
   }
-  
+
   // Add to local chat
   onMessageAdded(gameState.username, text)
   messageInput.value = ''
@@ -321,12 +333,40 @@ function sendMessage(e) {
 
 function onMessageAdded(username, text) {
   const $div = document.createElement('div')
-  $div.className = 'message'
-  $div.textContent = `${username}: ${text}`
-  document.querySelector('#messages').appendChild($div)
-  
-  // Auto-scroll to bottom
+  $div.className = `message ${username === gameState.username ? 'sent' : 'received'}`
+
+  // Create message content
+  const messageContent = document.createElement('span')
+  messageContent.textContent = text
+  messageContent.style.color = '#000000'
+
+  // Create username label if it's a received message
+  if (username !== gameState.username) {
+    const usernameLabel = document.createElement('div')
+    usernameLabel.className = 'message-username'
+    usernameLabel.textContent = username
+    usernameLabel.style.color = '#667781'
+    usernameLabel.style.fontSize = '12px'
+    usernameLabel.style.marginBottom = '2px'
+    $div.appendChild(usernameLabel)
+  }
+
+  // Add timestamp
+  const timestamp = document.createElement('span')
+  timestamp.className = 'message-time'
+  timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  timestamp.style.fontSize = '11px'
+  timestamp.style.color = '#667781'
+  timestamp.style.marginLeft = '8px'
+  timestamp.style.float = 'right'
+
+  $div.appendChild(messageContent)
+  $div.appendChild(timestamp)
+
   const messages = document.querySelector('#messages')
+  messages.appendChild($div)
+
+  // Auto-scroll to bottom
   messages.scrollTop = messages.scrollHeight
 }
 
@@ -341,15 +381,15 @@ function hideLoading() {
 }
 
 // Copy room code functionality
-window.copyRoomCode = async function() {
+window.copyRoomCode = async function () {
   const roomCode = document.getElementById('room-code-display').value
   await navigator.clipboard.writeText(roomCode)
-  
+
   const button = document.querySelector('.copy-button')
   const tooltip = document.createElement('div')
   tooltip.className = 'tooltip'
   tooltip.textContent = 'Copied!'
-  
+
   button.appendChild(tooltip)
   setTimeout(() => tooltip.classList.add('visible'), 0)
   setTimeout(() => {
@@ -438,21 +478,21 @@ function createChessBoard() {
         // Setup drag and drop handlers for pieces
         img.addEventListener('dragstart', function (e) {
           debug(`Dragstart triggered on ${piece.color} ${piece.type} at ${actualRow},${actualCol}`)
-          
+
           // Check game state
           if (!gameState.gameStarted) {
             debug('Cannot drag: Game not started', 'error')
             e.preventDefault()
             return false
           }
-          
+
           // Check turn
           if (gameState.currentTurn !== gameState.playerColor) {
             debug(`Cannot drag: Not your turn. Current turn: ${gameState.currentTurn}, Your color: ${gameState.playerColor}`, 'error')
             e.preventDefault()
             return false
           }
-          
+
           // Check piece color
           if (piece.color !== gameState.playerColor) {
             debug(`Cannot drag: Not your piece. Piece color: ${piece.color}, Your color: ${gameState.playerColor}`, 'error')
@@ -679,9 +719,30 @@ function makeMove(fromRow, fromCol, toRow, toCol) {
   gameState.board[toRow][toCol] = piece
   gameState.board[fromRow][fromCol] = null
   gameState.currentTurn = gameState.currentTurn === 'white' ? 'black' : 'white'
+
   clearHighlights()
   createChessBoard()
   updateGameStatus()
+
+  // Play move sound
+  playSound('moveSound');
+
+  // Check if the move puts the opponent in check
+  if (isCheck(gameState.currentTurn)) {
+    gameState.isCheck = true;
+    playSound('checkSound');
+
+    // Check if it's checkmate
+    if (isCheckmate(gameState.currentTurn)) {
+      playSound('gameOverSound');
+      const winner = gameState.currentTurn === 'white' ? 'Black' : 'White';
+      setTimeout(() => alert(`Checkmate! ${winner} wins!`), 100);
+    }
+  } else {
+    gameState.isCheck = false;
+  }
+
+  updateGameStatus();
 }
 
 /**
@@ -730,12 +791,12 @@ function handleGameMessage(message) {
 
 async function joinSwarm(topicBuffer) {
   showLoading('Connecting to game network...')
-  
+
   try {
     const discovery = swarm.join(topicBuffer, { client: true, server: true })
     await discovery.flushed()
     hideLoading()
-    
+
     if (gameState.isRoomCreator) {
       document.getElementById('loading-text').textContent = 'Waiting for opponent...'
     }
@@ -748,4 +809,70 @@ async function joinSwarm(topicBuffer) {
 function handleChatMessage(message) {
   const { username, text } = message
   onMessageAdded(username, text)
+}
+
+// Add these new functions for check and checkmate detection
+function isCheck(color) {
+  // Simplified check detection - you may want to implement more sophisticated logic
+  const kingPos = findKing(color);
+  if (!kingPos) return false;
+
+  // Check if any opponent piece can capture the king
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState.board[row][col];
+      if (piece && piece.color !== color) {
+        if (isValidMove(row, col, kingPos.row, kingPos.col)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function findKing(color) {
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState.board[row][col];
+      if (piece && piece.type === 'king' && piece.color === color) {
+        return { row, col };
+      }
+    }
+  }
+  return null;
+}
+
+function isCheckmate(color) {
+  // Simplified checkmate detection - you may want to implement more sophisticated logic
+  if (!isCheck(color)) return false;
+
+  // Try all possible moves for all pieces of the given color
+  for (let fromRow = 0; fromRow < 8; fromRow++) {
+    for (let fromCol = 0; fromCol < 8; fromCol++) {
+      const piece = gameState.board[fromRow][fromCol];
+      if (piece && piece.color === color) {
+        for (let toRow = 0; toRow < 8; toRow++) {
+          for (let toCol = 0; toCol < 8; toCol++) {
+            if (isValidMove(fromRow, fromCol, toRow, toCol)) {
+              // Try the move
+              const tempPiece = gameState.board[toRow][toCol];
+              gameState.board[toRow][toCol] = piece;
+              gameState.board[fromRow][fromCol] = null;
+
+              // Check if the move gets out of check
+              const stillInCheck = isCheck(color);
+
+              // Undo the move
+              gameState.board[fromRow][fromCol] = piece;
+              gameState.board[toRow][toCol] = tempPiece;
+
+              if (!stillInCheck) return false;
+            }
+          }
+        }
+      }
+    }
+  }
+  return true;
 }
