@@ -53,151 +53,300 @@ input:focus {
 }
 
 /* Main body styling */
-body {
-  background-color: #001601;
-  font-family: monospace;
+html, body {
   margin: 0;
   padding: 0;
-  width: 100vw;
   height: 100vh;
   overflow: hidden;
-  color: #B0D944;
 }
 
-/* Main container layout */
-main {
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #001601;
+  color: #ffffff;
   display: flex;
-  height: 100vh;
-  width: 100vw;
-  padding-top: 30px; /* Account for titlebar */
+  flex-direction: column;
+}
+
+/* Main layout */
+main {
+  flex: 1;
+  display: flex;
+  height: calc(100vh - 30px); /* Subtract titlebar height */
+  overflow: hidden;
+}
+
+/* Game stages container */
+#game-stages {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Stage styling */
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Game stage specific */
+#stage-game {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* Game container */
+.game-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  overflow: hidden;
+}
+
+/* Chess board container */
+.board-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  height: 100%;
+}
+
+/* Chess board */
+#chess-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  aspect-ratio: 1;
+  max-height: 80vh;
+  width: auto;
+  background: #B0D944;
+  border: 2px solid #B0D944;
+  box-shadow: 0 0 20px rgba(176, 217, 68, 0.3);
+}
+
+/* Chat Area Styles */
+#chat-area {
+  width: 300px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #f0f2f5;
+  border-left: 1px solid #d1d7db;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0; /* Prevent chat from shrinking */
+}
+
+.chat-header {
+  background-color: #f0f2f5;
+  padding: 16px;
+  border-bottom: 1px solid #d1d7db;
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.chat-header h3 {
+  margin: 0;
+  color: #41525d;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.connection-status {
+  font-size: 13px;
+  color: #667781;
+  margin-top: 4px;
+}
+
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background-color: #efeae2;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239C92AC' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+.message-form {
+  padding: 10px;
+  background-color: #f0f2f5;
+  border-top: 1px solid #d1d7db;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0; /* Prevent form from shrinking */
+}
+
+#message {
+  flex: 1;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: white;
+  font-size: 15px;
+  color: #41525d;
+}
+
+#message:focus {
+  outline: none;
+}
+
+#message::placeholder {
+  color: #8696a0;
+}
+
+.send-btn {
+  background-color: #00a884;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.send-btn:hover {
+  background-color: #008f72;
+}
+
+.send-btn::before {
+  content: "→";
+  font-size: 20px;
+}
+
+/* Scrollbar styling */
+.messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+  background: #bfc1c3;
+  border-radius: 3px;
+}
+
+.messages-container::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+/* Chess Board Layout and Styling */
+.chess-board {
+  width: 640px;
+  height: 640px;
+  margin: 20px auto;
+  border: 2px solid #B0D944;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
   position: relative;
 }
 
-/* Stage common styles */
-.stage {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 22, 1, 0.95);
-  border: 1px solid #B0D944;
-  border-radius: 8px;
-  padding: 2rem;
-  min-width: 400px;
-  text-align: center;
-}
-
-.stage h2 {
-  margin-bottom: 2rem;
-  font-size: 1.5em;
-}
-
-/* Stage 1: Room Selection */
-#stage-room-selection .stage-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  align-items: center;
-}
-
-#stage-room-selection button {
-  width: 200px;
-  padding: 1rem;
-  font-size: 1.2em;
-}
-
-.divider {
-  font-size: 1.2em;
-  color: #666;
-}
-
-/* Stage 2: Room Setup */
-.setup-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
-}
-
-.setup-form input {
-  width: 100%;
-  text-align: center;
-}
-
-.room-code-display {
-  margin: 1rem 0;
-}
-
-.waiting-text {
-  margin-top: 1rem;
-  color: #666;
-}
-
-/* Stage 3: Color Selection */
-.color-options {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  margin: 2rem 0;
-}
-
-.color-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.color-btn img {
+/* Chess Square Styling */
+.chess-square {
   width: 80px;
   height: 80px;
-}
-
-.color-btn:hover {
-  transform: translateY(-5px);
-}
-
-.status-message {
-  margin-top: 1rem;
-  color: #ff6b6b;
-}
-
-/* Stage 4: Game Interface */
-#game-container {
   display: flex;
-  width: 100%;
-  height: calc(100vh - 30px);
-  gap: 20px;
-  padding: 20px;
-}
-
-#game-header {
-  display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  margin-bottom: 1rem;
-  padding: 1rem;
+  position: relative;
+}
+
+/* Chess Piece Styling */
+.chess-piece {
+  width: 65px;
+  height: 65px;
+  cursor: move;
+  user-select: none;
+  -webkit-user-drag: element;
+  position: relative;
+  z-index: 1;
+}
+
+/* Drag and Drop Visual States */
+.chess-piece.dragging {
+  opacity: 0.6;
+  z-index: 1000;
+}
+
+.chess-square.valid-drop {
+  background: rgba(176, 217, 68, 0.4) !important;
+}
+
+.chess-square.selected {
+  background: rgba(176, 217, 68, 0.3) !important;
+}
+
+/* Chess Board Colors */
+.white {
+  background: #EEEED2;
+}
+
+.black {
+  background: #769656;
+}
+
+/* Game Status Display */
+#game-status {
+  color: #B0D944;
+  text-align: center;
+  margin: 10px 0;
+  font-size: 1.5em;
+  padding: 10px;
   background: rgba(0, 22, 1, 0.8);
   border: 1px solid #B0D944;
   border-radius: 4px;
 }
 
-.player-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
+/* Debug Panel Styling */
+#debug-panel {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 300px;
+  max-height: 200px;
+  background: rgba(0, 0, 0, 0.9);
+  color: #B0D944;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 12px;
+  overflow-y: auto;
+  z-index: 1000;
+  border-top: 1px solid #B0D944;
+  border-left: 1px solid #B0D944;
 }
 
-.player-info .username {
-  font-weight: bold;
+/* Debug Message Types */
+#debug-panel .debug-entry {
+  margin: 2px 0;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(176, 217, 68, 0.2);
 }
 
-.player-info .color {
-  color: #666;
+#debug-panel .error {
+  color: #ff6b6b;
+}
+
+#debug-panel .success {
+  color: #B0D944;
+}
+
+#debug-panel .info {
+  color: #4dabf7;
 }
 
 /* Utility class for hiding elements */
@@ -382,161 +531,35 @@ main {
 
 /* Chat Section Styles */
 #chat {
-  width: 350px;
   display: flex;
   flex-direction: column;
-  padding: .75rem;
-  border-left: 1px solid #B0D944;
   height: 100%;
-}
-
-#header {
-  margin-bottom: 0.75rem;
-}
-
-#details {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Chat Messages Area */
-#messages {
-  flex: 1;
-  font-family: 'Courier New', Courier, monospace;
-  overflow-y: auto;
-  margin: 10px 0;
-  padding: 10px;
-  border: 1px solid #B0D944;
-  scrollbar-width: thin;
-  scrollbar-color: #B0D944 #001601;
-}
-
-/* Custom Scrollbar Styling */
-#messages::-webkit-scrollbar {
-  width: 8px;
-}
-
-#messages::-webkit-scrollbar-track {
-  background: #001601;
-}
-
-#messages::-webkit-scrollbar-thumb {
-  background: #B0D944;
-  border-radius: 4px;
-}
-
-/* Message Input Form */
-#message-form {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-#message {
-  flex: 1;
-}
-
-/* Chess Board Layout and Styling */
-.chess-board {
-  width: 640px;
-  height: 640px;
-  margin: 20px auto;
-  border: 2px solid #B0D944;
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  position: relative;
-}
-
-/* Chess Square Styling */
-.chess-square {
-  width: 80px;
-  height: 80px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
-
-/* Chess Piece Styling */
-.chess-piece {
-  width: 65px;
-  height: 65px;
-  cursor: move;
-  user-select: none;
-  -webkit-user-drag: element;
-  position: relative;
-  z-index: 1;
-}
-
-/* Drag and Drop Visual States */
-.chess-piece.dragging {
-  opacity: 0.6;
-  z-index: 1000;
-}
-
-.chess-square.valid-drop {
-  background: rgba(176, 217, 68, 0.4) !important;
-}
-
-.chess-square.selected {
-  background: rgba(176, 217, 68, 0.3) !important;
-}
-
-/* Chess Board Colors */
-.white {
-  background: #EEEED2;
-}
-
-.black {
-  background: #769656;
-}
-
-/* Game Status Display */
-#game-status {
-  color: #B0D944;
-  text-align: center;
-  margin: 10px 0;
-  font-size: 1.5em;
-  padding: 10px;
-  background: rgba(0, 22, 1, 0.8);
-  border: 1px solid #B0D944;
-  border-radius: 4px;
-}
-
-/* Debug Panel Styling */
-#debug-panel {
-  position: fixed;
-  bottom: 0;
-  right: 0;
   width: 300px;
-  max-height: 200px;
-  background: rgba(0, 0, 0, 0.9);
-  color: #B0D944;
-  padding: 10px;
-  font-family: monospace;
-  font-size: 12px;
-  overflow-y: auto;
-  z-index: 1000;
-  border-top: 1px solid #B0D944;
-  border-left: 1px solid #B0D944;
+  background-color: #f0f2f5;
+  border-left: 1px solid #d1d7db;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
 }
 
-/* Debug Message Types */
-#debug-panel .debug-entry {
-  margin: 2px 0;
-  padding: 2px 0;
-  border-bottom: 1px solid rgba(176, 217, 68, 0.2);
+.message {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 7.5px;
+  max-width: 85%;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
-#debug-panel .error {
-  color: #ff6b6b;
+/* Sender's messages (your messages) */
+.message.sent {
+  background-color: #d9fdd3;
+  margin-left: auto;
+  border-top-right-radius: 0;
 }
 
-#debug-panel .success {
-  color: #B0D944;
-}
-
-#debug-panel .info {
-  color: #4dabf7;
+/* Receiver's messages (opponent's messages) */
+.message.received {
+  background-color: white;
+  margin-right: auto;
+  border-top-left-radius: 0;
 }
