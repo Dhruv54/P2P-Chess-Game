@@ -26,6 +26,7 @@
   "dependencies": {
     "b4a": "^1.6.7",
     "hypercore-crypto": "^3.5.0",
-    "hyperswarm": "^4.8.4"
+    "hyperswarm": "^4.8.4",
+    "peerjs": "^1.5.4"
   }
 }
