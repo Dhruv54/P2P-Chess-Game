@@ -13,9 +13,6 @@ const { teardown, updates } = Pear
 // Initialize P2P networking
 const swarm = new Hyperswarm()
 
-const INITIAL_TIME = 300; // 5 minutes in seconds
-let timerInterval = null
-
 // Game state variables
 const gameState = {
   stage: 'room-selection',
@@ -30,16 +27,12 @@ const gameState = {
   gameStarted: false,
   roomCode: null,
   isRoomCreator: false,
-  isCheck: false,
-  timerDuration: 600, // default: 10 minutes (600 seconds)
-  whiteTimer: 600,
-  blackTimer: 600
+  isCheck: false
 }
 
 let selectedSquare = null
 let draggedPiece = null
 let draggedPieceElement = null
-let gameOver = false
 
 // Cleanup handlers
 teardown(() => swarm.destroy())
@@ -73,12 +66,26 @@ document.addEventListener('DOMContentLoaded', () => {
     debug('Initializing game UI...')
     initializeUI()
     setupEventListeners()
+    initializeTheme()
     debug('Game UI initialized successfully', 'success')
   } catch (error) {
     debug(`Error initializing game UI: ${error.message}`, 'error')
     console.error('Initialization error:', error)
   }
 })
+
+// Theme toggle functionality
+function initializeTheme() {
+  const theme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+}
 
 // Stage navigation
 function showStage(stageName) {
@@ -233,85 +240,41 @@ function setupGameInterfaceListeners() {
 swarm.on('connection', (peer) => {
   // Only allow 2 peers in a room
   if (swarm.connections.size > 1) {
-    peer.destroy();
-    return;
+    peer.destroy()
+    return
   }
 
-  debug('Peer connected', 'success');
+  debug('Peer connected', 'success')
 
   // Automatically start game when peer connects
   if (gameState.isRoomCreator) {
-    gameState.playerColor = 'white';
-    gameState.opponentInfo.color = 'black';
+    gameState.playerColor = 'white'
+    gameState.opponentInfo.color = 'black'
   } else {
-    gameState.playerColor = 'black';
-    gameState.opponentInfo.color = 'white';
+    gameState.playerColor = 'black'
+    gameState.opponentInfo.color = 'white'
   }
-  startGame();
+  startGame()
 
-  // If you are the room creator, broadcast the selected timer
-  if (gameState.isRoomCreator) {
-  const gameStartMessage = {
-    type: 'game-start',
-    timerDuration: gameState.timerDuration
-  };
-  peer.write(b4a.from(JSON.stringify(gameStartMessage)));
-  }
+  peer.on('data', data => {
+    try {
+      const message = JSON.parse(b4a.toString(data))
 
-  // Ensure the data listener is added only once
-  if (!peer.__hasDataListener) {
-    peer.__hasDataListener = true;
-    debug(`Adding data listener for peer: ${b4a.toString(peer.remotePublicKey, 'hex')}`);
-    peer.on('data', handlePeerData);
-  }
-});
-
-function handlePeerData(data) {
-  let rawData = typeof data === 'string' ? data : b4a.toString(data);
-  // Remove null characters and trim whitespace
-  rawData = rawData.replace(/\0/g, '').trim();
-  debug(`Raw data received after trim: ${rawData}`);
-
-  try {
-    const message = JSON.parse(rawData);
-    debug(`Parsed message from peer: ${JSON.stringify(message)}`);
-
-    switch (message.type) {
-      case 'move':
-        handleGameMessage(message);
-        break;
-      case 'quit':
-        handleQuitMessage(message);
-        break;
-      case 'draw-offer':
-        handleDrawOffer(message);
-        break;
-      case 'draw-accept':
-        handleDrawAccept(message);
-        break;
-      case 'chat':
-        handleChatMessage(message);
-        break;
-      case 'game-start':
-        // Update timer on the joiner's side with the room creator's selected timer
-        gameState.timerDuration = message.timerDuration;
-        gameState.whiteTimer = message.timerDuration;
-        gameState.blackTimer = message.timerDuration;
-        debug(`Game start received with timer: ${formatTime(message.timerDuration)}`, 'success');
-        // Start the game if it hasn't already started
-        if (!gameState.gameStarted) {
-          startGame();
-        }
-        break;
-      default:
-        onMessageAdded('Peer', rawData);
+      switch (message.type) {
+        case 'move':
+          handleGameMessage(message)
+          break
+        case 'chat':
+          handleChatMessage(message)
+          break
+      }
+    } catch (e) {
+      debug(`Error handling message: ${e.message}`, 'error')
     }
-  } catch (e) {
-    debug(`Received non-JSON data from peer: ${rawData}`, 'error');
-    onMessageAdded('Peer', rawData);
-  }
-}
+  })
 
+  peer.on('error', e => debug(`Connection error: ${e}`, 'error'))
+})
 
 swarm.on('update', () => {
   document.querySelector('#peers-count').textContent = swarm.connections.size
@@ -330,25 +293,17 @@ swarm.on('update', () => {
 })
 
 function startGame() {
-  // Set the timers using the selected duration
-  gameState.whiteTimer = gameState.timerDuration;
-  gameState.blackTimer = gameState.timerDuration;
-  
-  gameState.gameStarted = true;
-  showStage('game');
+  gameState.gameStarted = true
+  showStage('game')
 
   // Update player info displays
-  updatePlayerInfo('player-info', gameState.username, gameState.playerColor);
-  updatePlayerInfo('opponent-info', gameState.opponentInfo.username, gameState.opponentInfo.color);
-  
-  createChessBoard();
+  updatePlayerInfo('player-info', gameState.username, gameState.playerColor)
+  updatePlayerInfo('opponent-info', gameState.opponentInfo.username, gameState.opponentInfo.color)
+  createChessBoard()
   updateGameStatus();
-  updateTimerDisplay(); // Make sure UI reflects the new timer values
-  startTimer();
   playSound('gameStartSound');
-  debug(`Game started with timer: ${formatTime(gameState.timerDuration)}`, 'success');
+  debug('Game started', 'success');
 }
-
 
 // Sound functions
 function playSound(soundId) {
@@ -773,29 +728,25 @@ function isValidMove(fromRow, fromCol, toRow, toCol) {
 /**
  * Executes a move on the board and updates the game state
  */
-function makeMove(fromRow, fromCol, toRow, toCol, newWhiteTimer, newBlackTimer) {
-  const piece = gameState.board[fromRow][fromCol];
-  gameState.board[toRow][toCol] = piece;
-  gameState.board[fromRow][fromCol] = null;
-  
-  // Update timers if provided
-  if (newWhiteTimer !== undefined && newBlackTimer !== undefined) {
-    gameState.whiteTimer = newWhiteTimer;
-    gameState.blackTimer = newBlackTimer;
-  }
-  
-  gameState.currentTurn = gameState.currentTurn === 'white' ? 'black' : 'white';
-  
-  clearHighlights();
-  createChessBoard();
-  updateGameStatus();
-  startTimer();
+function makeMove(fromRow, fromCol, toRow, toCol) {
+  const piece = gameState.board[fromRow][fromCol]
+  gameState.board[toRow][toCol] = piece
+  gameState.board[fromRow][fromCol] = null
+  gameState.currentTurn = gameState.currentTurn === 'white' ? 'black' : 'white'
+
+  clearHighlights()
+  createChessBoard()
+  updateGameStatus()
+
+  // Play move sound
   playSound('moveSound');
-  
-  // Check for check/checkmate conditions...
+
+  // Check if the move puts the opponent in check
   if (isCheck(gameState.currentTurn)) {
     gameState.isCheck = true;
     playSound('checkSound');
+
+    // Check if it's checkmate
     if (isCheckmate(gameState.currentTurn)) {
       playSound('gameOverSound');
       const winner = gameState.currentTurn === 'white' ? 'Black' : 'White';
@@ -804,10 +755,9 @@ function makeMove(fromRow, fromCol, toRow, toCol, newWhiteTimer, newBlackTimer) 
   } else {
     gameState.isCheck = false;
   }
-  
+
   updateGameStatus();
 }
-
 
 /**
  * Updates the game status display
@@ -821,25 +771,6 @@ function updateGameStatus() {
     status.textContent = `${gameState.currentTurn.charAt(0).toUpperCase() + gameState.currentTurn.slice(1)}'s turn${isYourTurn ? ' (Your turn)' : ''}`
   }
 }
-/**
- * Handle incoming game messages from opponent
- */
-function handleGameMessage(message) {
-  switch (message.type) {
-    case 'move':
-      if (gameState.currentTurn !== gameState.playerColor) {
-        makeMove(
-          message.fromRow,
-          message.fromCol,
-          message.toRow,
-          message.col,
-          message.whiteTimer,
-          message.blackTimer
-        );
-      }
-      break
-  }
-}
 
 /**
  * Send move to opponent
@@ -850,16 +781,25 @@ function broadcastMove(fromRow, fromCol, toRow, toCol) {
     fromRow,
     fromCol,
     toRow,
-    toCol,
-    whiteTimer: gameState.whiteTimer,
-    blackTimer: gameState.blackTimer
+    toCol
   }
 
-  debug(`Broadcasting move: ${JSON.stringify(message)}`, 'success')
   const peers = [...swarm.connections]
   for (const peer of peers) {
-    debug(`Sending data to peer: ${b4a.toString(peer.remotePublicKey, 'hex').substr(0,6)}`)
     peer.write(b4a.from(JSON.stringify(message)))
+  }
+}
+
+/**
+ * Handle incoming game messages from opponent
+ */
+function handleGameMessage(message) {
+  switch (message.type) {
+    case 'move':
+      if (gameState.currentTurn !== gameState.playerColor) {
+        makeMove(message.fromRow, message.fromCol, message.toRow, message.toCol)
+      }
+      break
   }
 }
 
@@ -950,180 +890,3 @@ function isCheckmate(color) {
   }
   return true;
 }
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${s < 10 ? '0' : ''}${s}`
-}
-
-function updateTimers() {
-  const whiteTimerElement = document.getElementById('white-timer')
-  const blackTimerElement = document.getElementById('black-timer')
-  if (whiteTimerElement) {
-    whiteTimerElement.textContent = formatTime(gameState.whiteTimer)
-  }
-  if (blackTimerElement) {
-    blackTimerElement.textContent = formatTime(gameState.blackTimer)
-  }
-}
-
-function startTimer() {
-  if (timerInterval) {
-    clearInterval(timerInterval)
-  }
-  timerInterval = setInterval(() => {
-    // Decrement the timer for the player whose turn it is
-    if (gameState.currentTurn === 'white') {
-      gameState.whiteTimer--
-      if (gameState.whiteTimer <= 0) {
-        clearInterval(timerInterval)
-        gameState.whiteTimer = 0
-        debug("White timed out!", "error")
-        // Optionally: handle game over for white
-      }
-    } else if (gameState.currentTurn === 'black') {
-      gameState.blackTimer--
-      if (gameState.blackTimer <= 0) {
-        clearInterval(timerInterval)
-        gameState.blackTimer = 0
-        debug("Black timed out!", "error")
-        // Optionally: handle game over for black
-      }
-    }
-    updateTimers()
-  }, 1000)
-}
-
-function endGame(winner) {
-  // Stop timer and mark game as ended
-  clearInterval(timerInterval)
-  gameState.gameStarted = false
-  gameOver = true
-
-  // Display winner/draw announcement
-  const announcement = document.getElementById('winner-announcement')
-  if (winner === null) {
-    announcement.textContent = "Game Drawn!"
-  } else if (winner === gameState.playerColor) {
-    announcement.textContent = "You win!"
-  } else {
-    announcement.textContent = "You lose!"
-  }
-  announcement.classList.add('show')
-}
-
-function quitGame() {
-  if (gameOver) return // Prevent multiple quits
-  // Broadcast quit message to peers
-  broadcastQuit()
-  // If you are quitting, then the opponent wins
-  const opponentColor = (gameState.playerColor === 'white') ? 'black' : 'white'
-  debug(`You resigned. Declaring opponent (${opponentColor}) as winner.`, 'info')
-  endGame(opponentColor)
-}
-
-function broadcastQuit() {
-  const message = { type: 'quit', resigningColor: gameState.playerColor }
-  debug(`Broadcasting quit message: ${JSON.stringify(message)}`, 'success')
-  const peers = [...swarm.connections]
-  for (const peer of peers) {
-    peer.write(b4a.from(JSON.stringify(message)))
-  }
-}
-
-function handleQuitMessage(message) {
-  if (gameOver) return
-  // When a quit message is received from opponent, you win
-  debug(`Received quit message from opponent (${message.resigningColor}). You win!`, 'info')
-  endGame(gameState.playerColor)
-}
-
-function offerDraw() {
-  if (gameOver) return
-  const message = { type: 'draw-offer', from: gameState.playerColor }
-  debug(`Offering draw: ${JSON.stringify(message)}`, 'info')
-  const peers = [...swarm.connections]
-  for (const peer of peers) {
-    peer.write(b4a.from(JSON.stringify(message)))
-  }
-  // Optionally, you can display a message on your side informing the offer was sent
-  debug("Draw offer sent. Waiting for opponent's response...", 'info')
-}
-
-function handleDrawOffer(message) {
-  // Prompt the player to accept or decline the draw offer
-  const accept = confirm("Your opponent has offered a draw. Do you accept?")
-  const peers = [...swarm.connections]
-  if (accept) {
-    // If accepted, broadcast acceptance and end game as draw
-    const response = {
-      type: 'draw-accept',
-      from: playerColor
-    }
-    for (const peer of peers) {
-      peer.write(b4a.from(JSON.stringify(response)))
-    }
-    debug("You accepted the draw offer.", 'success')
-    endGame(null)
-  } else {
-    // Optionally, you can send a draw decline message if you want to inform your opponent
-    debug("You declined the draw offer.", 'info')
-  }
-}
-
-function handleDrawAccept(message) {
-  // When you receive draw acceptance, the game ends in a draw
-  debug("Opponent accepted your draw offer. Game drawn.", 'success')
-  endGame(null)
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const quitButton = document.getElementById('quit-button');
-  const drawButton = document.getElementById('draw-button');
-
-  if (quitButton) {
-    quitButton.addEventListener('click', quitGame);
-  }
-
-  if (drawButton) {
-    drawButton.addEventListener('click', offerDraw);
-  }
-});
-
-function setupTimerOptions() {
-  const timerButtons = document.querySelectorAll('.timer-option');
-  timerButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      // Remove active class from all timer buttons
-      timerButtons.forEach(btn => btn.classList.remove('active'));
-      button.classList.add('active');
-
-      // Get the selected time in seconds
-      const selectedTime = parseInt(button.dataset.time, 10);
-      gameState.timerDuration = selectedTime;
-      gameState.whiteTimer = selectedTime;
-      gameState.blackTimer = selectedTime;
-
-      debug(`Timer set to ${formatTime(selectedTime)}`, 'info');
-    });
-  });
-}
-
-function updateTimerDisplay() {
-  document.getElementById("white-timer").textContent = formatTime(gameState.whiteTimer);
-  document.getElementById("black-timer").textContent = formatTime(gameState.blackTimer);
-}
-
-
-document.addEventListener('DOMContentLoaded', () => {
-  try {
-    debug('Initializing game UI...');
-    initializeUI();
-    setupEventListeners();
-    setupTimerOptions(); // Add timer option initialization
-    debug('Game UI initialized successfully', 'success');
-  } catch (error) {
-    debug(`Error initializing game UI: ${error.message}`, 'error');
-    console.error('Initialization error:', error);
-  }
-});
