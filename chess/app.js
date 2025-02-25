@@ -27,7 +27,16 @@ const gameState = {
   gameStarted: false,
   roomCode: null,
   isRoomCreator: false,
-  isCheck: false
+  isCheck: false,
+  moveHistory: [],
+  halfMoveClock: 0,
+  castlingRights: {
+    white: { kingSide: true, queenSide: true },
+    black: { kingSide: true, queenSide: true }
+  },
+  enPassantTarget: null,
+  positionHistory: [],
+  pendingPromotion: null
 }
 
 let selectedSquare = null
@@ -674,7 +683,6 @@ function clearHighlights() {
 
 /**
  * Validates if a move is legal according to chess rules
- * Implements basic movement patterns for each piece type
  */
 function isValidMove(fromRow, fromCol, toRow, toCol) {
   const piece = gameState.board[fromRow][fromCol]
@@ -699,7 +707,43 @@ function isValidMove(fromRow, fromCol, toRow, toCol) {
 
       // Diagonal capture
       if (Math.abs(fromCol - toCol) === 1 && toRow === fromRow + direction) {
+        // Normal capture
         if (targetSquare) return true
+        
+        // En passant
+        const enPassantRow = piece.color === 'white' ? 3 : 4
+        if (fromRow === enPassantRow && gameState.enPassantTarget) {
+          const [epRow, epCol] = gameState.enPassantTarget
+          if (toRow === epRow && toCol === epCol) return true
+        }
+      }
+      return false
+
+    case 'king':
+      // Normal king movement
+      if (Math.abs(fromRow - toRow) <= 1 && Math.abs(fromCol - toCol) <= 1) return true
+
+      // Castling
+      if (fromRow === toRow && Math.abs(fromCol - toCol) === 2) {
+        if (gameState.isCheck) return false // Can't castle while in check
+        
+        const castlingRights = gameState.castlingRights[piece.color]
+        const isKingSide = toCol > fromCol
+
+        if (isKingSide && castlingRights.kingSide) {
+          // Check if path is clear for kingside castling
+          return !gameState.board[fromRow][fromCol + 1] && 
+                 !gameState.board[fromRow][fromCol + 2] &&
+                 !isSquareAttacked(fromRow, fromCol + 1, piece.color) &&
+                 !isSquareAttacked(fromRow, fromCol + 2, piece.color)
+        } else if (!isKingSide && castlingRights.queenSide) {
+          // Check if path is clear for queenside castling
+          return !gameState.board[fromRow][fromCol - 1] &&
+                 !gameState.board[fromRow][fromCol - 2] &&
+                 !gameState.board[fromRow][fromCol - 3] &&
+                 !isSquareAttacked(fromRow, fromCol - 1, piece.color) &&
+                 !isSquareAttacked(fromRow, fromCol - 2, piece.color)
+        }
       }
       return false
 
@@ -717,9 +761,6 @@ function isValidMove(fromRow, fromCol, toRow, toCol) {
       return fromRow === toRow || fromCol === toCol ||
         Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)
 
-    case 'king':
-      return Math.abs(fromRow - toRow) <= 1 && Math.abs(fromCol - toCol) <= 1
-
     default:
       return false
   }
@@ -730,33 +771,113 @@ function isValidMove(fromRow, fromCol, toRow, toCol) {
  */
 function makeMove(fromRow, fromCol, toRow, toCol) {
   const piece = gameState.board[fromRow][fromCol]
-  gameState.board[toRow][toCol] = piece
-  gameState.board[fromRow][fromCol] = null
-  gameState.currentTurn = gameState.currentTurn === 'white' ? 'black' : 'white'
+  const targetSquare = gameState.board[toRow][toCol]
+  const isCapture = targetSquare !== null
+  const oldEnPassantTarget = gameState.enPassantTarget
 
-  clearHighlights()
-  createChessBoard()
-  updateGameStatus()
-
-  // Play move sound
-  playSound('moveSound');
-
-  // Check if the move puts the opponent in check
-  if (isCheck(gameState.currentTurn)) {
-    gameState.isCheck = true;
-    playSound('checkSound');
-
-    // Check if it's checkmate
-    if (isCheckmate(gameState.currentTurn)) {
-      playSound('gameOverSound');
-      const winner = gameState.currentTurn === 'white' ? 'Black' : 'White';
-      setTimeout(() => alert(`Checkmate! ${winner} wins!`), 100);
-    }
-  } else {
-    gameState.isCheck = false;
+  // Check for pawn promotion before making the move
+  if (piece.type === 'pawn' && (toRow === 0 || toRow === 7)) {
+    // Store pending promotion
+    gameState.pendingPromotion = { row: toRow, col: toCol, fromRow, fromCol }
+    showPromotionDialog(toRow, toCol)
+    return // Wait for promotion choice
   }
 
-  updateGameStatus();
+  // Continue with regular move
+  executeMoveAndUpdate(fromRow, fromCol, toRow, toCol, piece.type)
+}
+
+function executeMoveAndUpdate(fromRow, fromCol, toRow, toCol, pieceType) {
+  const piece = gameState.board[fromRow][fromCol]
+  const targetSquare = gameState.board[toRow][toCol]
+  const isCapture = targetSquare !== null
+  const oldEnPassantTarget = gameState.enPassantTarget
+
+  // Update fifty-move rule counter
+  if (pieceType === 'pawn' || isCapture) {
+    gameState.halfMoveClock = 0
+  } else {
+    gameState.halfMoveClock++
+  }
+
+  // Handle en passant capture
+  if (pieceType === 'pawn' && oldEnPassantTarget && 
+      toRow === oldEnPassantTarget[0] && toCol === oldEnPassantTarget[1]) {
+    const captureRow = fromRow
+    gameState.board[captureRow][toCol] = null
+  }
+
+  // Set en passant target for two-square pawn moves
+  gameState.enPassantTarget = null
+  if (pieceType === 'pawn' && Math.abs(fromRow - toRow) === 2) {
+    const enPassantRow = (fromRow + toRow) / 2
+    gameState.enPassantTarget = [enPassantRow, fromCol]
+  }
+
+  // Handle castling
+  if (pieceType === 'king' && Math.abs(fromCol - toCol) === 2) {
+    const rookFromCol = toCol > fromCol ? 7 : 0
+    const rookToCol = toCol > fromCol ? toCol - 1 : toCol + 1
+    const rook = gameState.board[fromRow][rookFromCol]
+    gameState.board[fromRow][rookToCol] = rook
+    gameState.board[fromRow][rookFromCol] = null
+  }
+
+  // Update castling rights
+  if (pieceType === 'king') {
+    gameState.castlingRights[piece.color].kingSide = false
+    gameState.castlingRights[piece.color].queenSide = false
+  } else if (pieceType === 'rook') {
+    if (fromCol === 0) gameState.castlingRights[piece.color].queenSide = false
+    if (fromCol === 7) gameState.castlingRights[piece.color].kingSide = false
+  }
+
+  // Make the move
+  gameState.board[toRow][toCol] = piece
+  gameState.board[fromRow][fromCol] = null
+
+  // Handle pawn promotion
+  if (pieceType === 'pawn' && (toRow === 0 || toRow === 7)) {
+    handlePawnPromotion(toRow, toCol)
+  }
+
+  // Store position for threefold repetition check
+  const position = getBoardPosition()
+  gameState.positionHistory.push(position)
+
+  // Update turn and game state
+  gameState.currentTurn = gameState.currentTurn === 'white' ? 'black' : 'white'
+  clearHighlights()
+  createChessBoard()
+
+  // Check game ending conditions
+  if (isCheck(gameState.currentTurn)) {
+    gameState.isCheck = true
+    playSound('checkSound')
+    if (isCheckmate(gameState.currentTurn)) {
+      playSound('gameOverSound')
+      const winner = gameState.currentTurn === 'white' ? 'Black' : 'White'
+      setTimeout(() => alert(`Checkmate! ${winner} wins!`), 100)
+    }
+  } else {
+    gameState.isCheck = false
+    if (isStalemate(gameState.currentTurn)) {
+      playSound('gameOverSound')
+      setTimeout(() => alert('Stalemate! The game is a draw.'), 100)
+    } else if (isThreefoldRepetition()) {
+      playSound('gameOverSound')
+      setTimeout(() => alert('Threefold repetition! The game is a draw.'), 100)
+    } else if (isFiftyMoveRule()) {
+      playSound('gameOverSound')
+      setTimeout(() => alert('Fifty-move rule! The game is a draw.'), 100)
+    } else if (isInsufficientMaterial()) {
+      playSound('gameOverSound')
+      setTimeout(() => alert('Insufficient material! The game is a draw.'), 100)
+    }
+  }
+
+  updateGameStatus()
+  playSound('moveSound')
 }
 
 /**
@@ -775,13 +896,14 @@ function updateGameStatus() {
 /**
  * Send move to opponent
  */
-function broadcastMove(fromRow, fromCol, toRow, toCol) {
+function broadcastMove(fromRow, fromCol, toRow, toCol, promotionPiece = null) {
   const message = {
     type: 'move',
     fromRow,
     fromCol,
     toRow,
-    toCol
+    toCol,
+    promotionPiece
   }
 
   const peers = [...swarm.connections]
@@ -797,7 +919,13 @@ function handleGameMessage(message) {
   switch (message.type) {
     case 'move':
       if (gameState.currentTurn !== gameState.playerColor) {
-        makeMove(message.fromRow, message.fromCol, message.toRow, message.toCol)
+        if (message.promotionPiece) {
+          // Execute move with promotion
+          executeMoveAndUpdate(message.fromRow, message.fromCol, message.toRow, message.toCol, message.promotionPiece)
+          gameState.board[message.toRow][message.toCol].type = message.promotionPiece
+        } else {
+          makeMove(message.fromRow, message.fromCol, message.toRow, message.toCol)
+        }
       }
       break
   }
@@ -889,4 +1017,183 @@ function isCheckmate(color) {
     }
   }
   return true;
+}
+
+function handlePawnPromotion(row, col) {
+  const piece = gameState.board[row][col]
+  // For now, automatically promote to queen
+  // TODO: Add UI for piece selection
+  piece.type = 'queen'
+}
+
+function isSquareAttacked(row, col, defendingColor) {
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = gameState.board[r][c]
+      if (piece && piece.color !== defendingColor) {
+        if (isValidMove(r, c, row, col)) return true
+      }
+    }
+  }
+  return false
+}
+
+function getBoardPosition() {
+  return JSON.stringify(gameState.board)
+}
+
+function isStalemate(color) {
+  if (isCheck(color)) return false
+  return !hasLegalMoves(color)
+}
+
+function hasLegalMoves(color) {
+  for (let fromRow = 0; fromRow < 8; fromRow++) {
+    for (let fromCol = 0; fromCol < 8; fromCol++) {
+      const piece = gameState.board[fromRow][fromCol]
+      if (piece && piece.color === color) {
+        for (let toRow = 0; toRow < 8; toRow++) {
+          for (let toCol = 0; toCol < 8; toCol++) {
+            if (isValidMove(fromRow, fromCol, toRow, toCol)) {
+              // Try the move
+              const tempPiece = gameState.board[toRow][toCol]
+              gameState.board[toRow][toCol] = piece
+              gameState.board[fromRow][fromCol] = null
+              const inCheck = isCheck(color)
+              // Undo the move
+              gameState.board[fromRow][fromCol] = piece
+              gameState.board[toRow][toCol] = tempPiece
+              if (!inCheck) return true
+            }
+          }
+        }
+      }
+    }
+  }
+  return false
+}
+
+function isThreefoldRepetition() {
+  const currentPosition = getBoardPosition()
+  return gameState.positionHistory.filter(pos => pos === currentPosition).length >= 3
+}
+
+function isFiftyMoveRule() {
+  return gameState.halfMoveClock >= 100 // 50 moves = 100 half-moves
+}
+
+function isInsufficientMaterial() {
+  let pieces = {
+    white: { count: 0, bishops: [], knights: 0 },
+    black: { count: 0, bishops: [], knights: 0 }
+  }
+
+  // Count pieces
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState.board[row][col]
+      if (!piece || piece.type === 'king') continue
+
+      pieces[piece.color].count++
+      if (piece.type === 'bishop') {
+        pieces[piece.color].bishops.push((row + col) % 2)
+      } else if (piece.type === 'knight') {
+        pieces[piece.color].knights++
+      }
+    }
+  }
+
+  // Check insufficient material conditions
+  for (const color of ['white', 'black']) {
+    if (pieces[color].count > 2) return false
+    if (pieces[color].count === 2 && pieces[color].knights === 2) return false
+    if (pieces[color].count === 1 && pieces[color].bishops.length === 0 && pieces[color].knights === 0) return false
+  }
+
+  return true
+}
+
+function showPromotionDialog(row, col) {
+  const color = gameState.board[gameState.pendingPromotion.fromRow][gameState.pendingPromotion.fromCol].color
+  
+  // Create modal container
+  const modal = document.createElement('div')
+  modal.className = 'promotion-modal'
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  `
+
+  // Create promotion options container
+  const container = document.createElement('div')
+  container.style.cssText = `
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+  `
+
+  // Available promotion pieces
+  const pieces = ['queen', 'rook', 'bishop', 'knight']
+
+  pieces.forEach(pieceType => {
+    const pieceButton = document.createElement('div')
+    pieceButton.style.cssText = `
+      width: 60px;
+      height: 60px;
+      cursor: pointer;
+      border: 2px solid #ccc;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: border-color 0.3s;
+    `
+
+    const pieceImage = document.createElement('img')
+    pieceImage.src = `chesspieces/${PIECES[color][pieceType]}`
+    pieceImage.style.width = '50px'
+    pieceImage.style.height = '50px'
+
+    pieceButton.appendChild(pieceImage)
+    
+    // Hover effect
+    pieceButton.addEventListener('mouseover', () => {
+      pieceButton.style.borderColor = '#666'
+    })
+    pieceButton.addEventListener('mouseout', () => {
+      pieceButton.style.borderColor = '#ccc'
+    })
+
+    // Click handler
+    pieceButton.addEventListener('click', () => {
+      const { fromRow, fromCol, row: toRow, col: toCol } = gameState.pendingPromotion
+      
+      // Execute the move with the chosen promotion piece
+      executeMoveAndUpdate(fromRow, fromCol, toRow, toCol, pieceType)
+      
+      // Update the piece type
+      gameState.board[toRow][toCol].type = pieceType
+      
+      // Remove the modal
+      document.body.removeChild(modal)
+      
+      // Broadcast the move with promotion
+      broadcastMove(fromRow, fromCol, toRow, toCol, pieceType)
+    })
+
+    container.appendChild(pieceButton)
+  })
+
+  modal.appendChild(container)
+  document.body.appendChild(modal)
 }
