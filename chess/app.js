@@ -641,8 +641,185 @@ function handleSquareClick(row, col) {
       }
     }
   } else if (clickedPiece && clickedPiece.color === gameState.playerColor) {
-    selectSquare(row, col)
+    // Only allow selecting pieces that can make valid moves when in check
+    if (gameState.isCheck) {
+      let hasValidMove = false
+      for (let toRow = 0; toRow < 8; toRow++) {
+        for (let toCol = 0; toCol < 8; toCol++) {
+          if (isValidMove(row, col, toRow, toCol)) {
+            hasValidMove = true
+            break
+          }
+        }
+        if (hasValidMove) break
+      }
+      if (hasValidMove) {
+        selectSquare(row, col)
+      }
+    } else {
+      selectSquare(row, col)
+    }
   }
+}
+
+/**
+ * Validates if a move is legal according to chess rules
+ */
+function isValidMove(fromRow, fromCol, toRow, toCol) {
+  const piece = gameState.board[fromRow][fromCol]
+  const targetSquare = gameState.board[toRow][toCol]
+
+  // Basic validation
+  if (fromRow === toRow && fromCol === toCol) return false
+  if (toRow < 0 || toRow > 7 || toCol < 0 || toCol > 7) return false
+  if (targetSquare && targetSquare.color === piece.color) return false
+
+  // Check if this move would put or leave own king in check
+  const tempPiece = gameState.board[toRow][toCol]
+  gameState.board[toRow][toCol] = piece
+  gameState.board[fromRow][fromCol] = null
+  const wouldBeInCheck = isKingAttacked(piece.color)
+  gameState.board[fromRow][fromCol] = piece
+  gameState.board[toRow][toCol] = tempPiece
+  if (wouldBeInCheck) return false
+
+  // Piece-specific movement rules
+  switch (piece.type) {
+    case 'pawn':
+      const direction = piece.color === 'white' ? -1 : 1
+      const startRow = piece.color === 'white' ? 6 : 1
+
+      // Forward movement
+      if (fromCol === toCol && !targetSquare) {
+        // One square forward
+        if (toRow === fromRow + direction) return true
+        
+        // Two squares forward from start
+        if (fromRow === startRow && 
+            toRow === fromRow + 2 * direction && 
+            !gameState.board[fromRow + direction][fromCol]) {
+          return true
+        }
+      }
+
+      // Diagonal capture
+      if (Math.abs(fromCol - toCol) === 1 && toRow === fromRow + direction) {
+        // Normal capture
+        if (targetSquare) return true
+        
+        // En passant
+        if (gameState.enPassantTarget && 
+            toRow === gameState.enPassantTarget[0] && 
+            toCol === gameState.enPassantTarget[1]) {
+          return true
+        }
+      }
+      return false
+
+    case 'knight':
+      return (Math.abs(fromRow - toRow) === 2 && Math.abs(fromCol - toCol) === 1) ||
+             (Math.abs(fromRow - toRow) === 1 && Math.abs(fromCol - toCol) === 2)
+
+    case 'bishop':
+      if (Math.abs(fromRow - toRow) !== Math.abs(fromCol - toCol)) return false
+      return !isPieceBetween(fromRow, fromCol, toRow, toCol)
+
+    case 'rook':
+      if (fromRow !== toRow && fromCol !== toCol) return false
+      return !isPieceBetween(fromRow, fromCol, toRow, toCol)
+
+    case 'queen':
+      if (fromRow !== toRow && fromCol !== toCol &&
+          Math.abs(fromRow - toRow) !== Math.abs(fromCol - toCol)) return false
+      return !isPieceBetween(fromRow, fromCol, toRow, toCol)
+
+    case 'king': {
+      // Normal move
+      if (Math.abs(fromRow - toRow) <= 1 && Math.abs(fromCol - toCol) <= 1) {
+        return !isSquareAttacked(toRow, toCol, piece.color)
+      }
+
+      // Castling
+      if (fromRow === toRow && Math.abs(fromCol - toCol) === 2) {
+        if (gameState.isCheck) return false
+        
+        const castlingRights = gameState.castlingRights[piece.color]
+        const isKingSide = toCol > fromCol
+
+        // Verify castling rights
+        if (!(isKingSide ? castlingRights.kingSide : castlingRights.queenSide)) {
+          return false
+        }
+
+        // Check path is clear
+        const rookCol = isKingSide ? 7 : 0
+        if (isPieceBetween(fromRow, fromCol, fromRow, rookCol)) {
+          return false
+        }
+
+        // Check if path is under attack
+        const pathCol = isKingSide ? [fromCol + 1, fromCol + 2] : [fromCol - 1, fromCol - 2]
+        for (const col of pathCol) {
+          if (isSquareAttacked(fromRow, col, piece.color)) {
+            return false
+          }
+        }
+
+        return true
+      }
+      return false
+    }
+
+    default:
+      return false
+  }
+}
+
+function isKingAttacked(color) {
+  const kingPos = findKing(color)
+  if (!kingPos) return false
+
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState.board[row][col];
+      if (piece && piece.color !== color) {
+        if (canPieceAttackSquare(row, col, kingPos.row, kingPos.col)) {
+          return true
+        }
+      }
+    }
+  }
+  return false
+}
+
+function isPieceBetween(fromRow, fromCol, toRow, toCol) {
+  const rowStep = fromRow === toRow ? 0 : (toRow - fromRow) / Math.abs(toRow - fromRow)
+  const colStep = fromCol === toCol ? 0 : (toCol - fromCol) / Math.abs(toCol - fromCol)
+
+  let currentRow = fromRow + rowStep
+  let currentCol = fromCol + colStep
+
+  while (currentRow !== toRow || currentCol !== toCol) {
+    if (gameState.board[currentRow][currentCol]) return true
+    currentRow += rowStep
+    currentCol += colStep
+  }
+
+  return false
+}
+
+function isSquareAttacked(row, col, defendingColor) {
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = gameState.board[r][c]
+      if (piece && piece.color !== defendingColor) {
+        if (canPieceAttackSquare(r, c, row, col)) {
+          return true
+        }
+      }
+    }
+  }
+  return false
 }
 
 /**
@@ -679,91 +856,6 @@ function clearHighlights() {
     square.classList.remove('selected', 'valid-move', 'valid-drop', 'invalid-drop')
   })
   selectedSquare = null
-}
-
-/**
- * Validates if a move is legal according to chess rules
- */
-function isValidMove(fromRow, fromCol, toRow, toCol) {
-  const piece = gameState.board[fromRow][fromCol]
-  const targetSquare = gameState.board[toRow][toCol]
-
-  // Basic validation
-  if (fromRow === toRow && fromCol === toCol) return false
-  if (toRow < 0 || toRow > 7 || toCol < 0 || toCol > 7) return false
-  if (targetSquare && targetSquare.color === piece.color) return false
-
-  // Piece-specific movement rules
-  switch (piece.type) {
-    case 'pawn':
-      const direction = piece.color === 'white' ? -1 : 1
-      const startRow = piece.color === 'white' ? 6 : 1
-
-      // Forward movement
-      if (fromCol === toCol && !targetSquare) {
-        if (toRow === fromRow + direction) return true
-        if (fromRow === startRow && toRow === fromRow + 2 * direction && !gameState.board[fromRow + direction][fromCol]) return true
-      }
-
-      // Diagonal capture
-      if (Math.abs(fromCol - toCol) === 1 && toRow === fromRow + direction) {
-        // Normal capture
-        if (targetSquare) return true
-        
-        // En passant
-        const enPassantRow = piece.color === 'white' ? 3 : 4
-        if (fromRow === enPassantRow && gameState.enPassantTarget) {
-          const [epRow, epCol] = gameState.enPassantTarget
-          if (toRow === epRow && toCol === epCol) return true
-        }
-      }
-      return false
-
-    case 'king':
-      // Normal king movement
-      if (Math.abs(fromRow - toRow) <= 1 && Math.abs(fromCol - toCol) <= 1) return true
-
-      // Castling
-      if (fromRow === toRow && Math.abs(fromCol - toCol) === 2) {
-        if (gameState.isCheck) return false // Can't castle while in check
-        
-        const castlingRights = gameState.castlingRights[piece.color]
-        const isKingSide = toCol > fromCol
-
-        if (isKingSide && castlingRights.kingSide) {
-          // Check if path is clear for kingside castling
-          return !gameState.board[fromRow][fromCol + 1] && 
-                 !gameState.board[fromRow][fromCol + 2] &&
-                 !isSquareAttacked(fromRow, fromCol + 1, piece.color) &&
-                 !isSquareAttacked(fromRow, fromCol + 2, piece.color)
-        } else if (!isKingSide && castlingRights.queenSide) {
-          // Check if path is clear for queenside castling
-          return !gameState.board[fromRow][fromCol - 1] &&
-                 !gameState.board[fromRow][fromCol - 2] &&
-                 !gameState.board[fromRow][fromCol - 3] &&
-                 !isSquareAttacked(fromRow, fromCol - 1, piece.color) &&
-                 !isSquareAttacked(fromRow, fromCol - 2, piece.color)
-        }
-      }
-      return false
-
-    case 'knight':
-      return (Math.abs(fromRow - toRow) === 2 && Math.abs(fromCol - toCol) === 1) ||
-        (Math.abs(fromRow - toRow) === 1 && Math.abs(fromCol - toCol) === 2)
-
-    case 'bishop':
-      return Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)
-
-    case 'rook':
-      return fromRow === toRow || fromCol === toCol
-
-    case 'queen':
-      return fromRow === toRow || fromCol === toCol ||
-        Math.abs(fromRow - toRow) === Math.abs(fromCol - toCol)
-
-    default:
-      return false
-  }
 }
 
 /**
@@ -830,6 +922,13 @@ function executeMoveAndUpdate(fromRow, fromCol, toRow, toCol, pieceType) {
   } else if (pieceType === 'rook') {
     if (fromCol === 0) gameState.castlingRights[piece.color].queenSide = false
     if (fromCol === 7) gameState.castlingRights[piece.color].kingSide = false
+  } else if (isCapture) {
+    // Check if a rook was captured
+    if (targetSquare.type === 'rook') {
+      const targetColor = targetSquare.color
+      if (toCol === 0) gameState.castlingRights[targetColor].queenSide = false
+      if (toCol === 7) gameState.castlingRights[targetColor].kingSide = false
+    }
   }
 
   // Make the move
@@ -864,9 +963,15 @@ function executeMoveAndUpdate(fromRow, fromCol, toRow, toCol, pieceType) {
     if (isStalemate(gameState.currentTurn)) {
       playSound('gameOverSound')
       setTimeout(() => alert('Stalemate! The game is a draw.'), 100)
+    } else if (isDeadPosition()) {
+      playSound('gameOverSound')
+      setTimeout(() => alert('Dead position! The game is a draw.'), 100)
     } else if (isThreefoldRepetition()) {
       playSound('gameOverSound')
       setTimeout(() => alert('Threefold repetition! The game is a draw.'), 100)
+    } else if (isSeventyFiveMoveRule()) {
+      playSound('gameOverSound')
+      setTimeout(() => alert('Seventy-five-move rule! The game is a draw.'), 100)
     } else if (isFiftyMoveRule()) {
       playSound('gameOverSound')
       setTimeout(() => alert('Fifty-move rule! The game is a draw.'), 100)
@@ -954,25 +1059,6 @@ function handleChatMessage(message) {
 }
 
 // Add these new functions for check and checkmate detection
-function isCheck(color) {
-  // Simplified check detection - you may want to implement more sophisticated logic
-  const kingPos = findKing(color);
-  if (!kingPos) return false;
-
-  // Check if any opponent piece can capture the king
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
-      const piece = gameState.board[row][col];
-      if (piece && piece.color !== color) {
-        if (isValidMove(row, col, kingPos.row, kingPos.col)) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
 function findKing(color) {
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
@@ -1078,6 +1164,10 @@ function isThreefoldRepetition() {
   return gameState.positionHistory.filter(pos => pos === currentPosition).length >= 3
 }
 
+function isSeventyFiveMoveRule() {
+  return gameState.halfMoveClock >= 150 // 75 moves = 150 half-moves
+}
+
 function isFiftyMoveRule() {
   return gameState.halfMoveClock >= 100 // 50 moves = 100 half-moves
 }
@@ -1111,6 +1201,46 @@ function isInsufficientMaterial() {
   }
 
   return true
+}
+
+function isDeadPosition() {
+  // Count material for each side
+  let pieces = {
+    white: { count: 0, bishops: [], knights: 0 },
+    black: { count: 0, bishops: [], knights: 0 }
+  }
+
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState.board[row][col]
+      if (!piece || piece.type === 'king') continue
+
+      pieces[piece.color].count++
+      if (piece.type === 'bishop') {
+        pieces[piece.color].bishops.push((row + col) % 2)
+      } else if (piece.type === 'knight') {
+        pieces[piece.color].knights++
+      }
+    }
+  }
+
+  // King vs King
+  if (pieces.white.count === 0 && pieces.black.count === 0) return true
+
+  // King and Bishop vs King
+  if ((pieces.white.count === 1 && pieces.white.bishops.length === 1 && pieces.black.count === 0) ||
+      (pieces.black.count === 1 && pieces.black.bishops.length === 1 && pieces.white.count === 0)) return true
+
+  // King and Knight vs King
+  if ((pieces.white.count === 1 && pieces.white.knights === 1 && pieces.black.count === 0) ||
+      (pieces.black.count === 1 && pieces.black.knights === 1 && pieces.white.count === 0)) return true
+
+  // King and Bishop vs King and Bishop (same colored squares)
+  if (pieces.white.count === 1 && pieces.black.count === 1 &&
+      pieces.white.bishops.length === 1 && pieces.black.bishops.length === 1 &&
+      pieces.white.bishops[0] === pieces.black.bishops[0]) return true
+
+  return false
 }
 
 function showPromotionDialog(row, col) {
@@ -1196,4 +1326,41 @@ function showPromotionDialog(row, col) {
 
   modal.appendChild(container)
   document.body.appendChild(modal)
+
+  // Add keyboard navigation
+  const handleKeyPress = (e) => {
+    const pieces = ['queen', 'rook', 'bishop', 'knight']
+    let selectedIndex = -1
+
+    if (e.key === 'ArrowLeft') {
+      selectedIndex = Math.max(0, selectedIndex - 1)
+    } else if (e.key === 'ArrowRight') {
+      selectedIndex = Math.min(3, selectedIndex + 1)
+    } else if (e.key === 'Enter' && selectedIndex !== -1) {
+      const pieceType = pieces[selectedIndex]
+      const { fromRow, fromCol, row: toRow, col: toCol } = gameState.pendingPromotion
+      
+      // Execute the move with the chosen promotion piece
+      executeMoveAndUpdate(fromRow, fromCol, toRow, toCol, pieceType)
+      
+      // Update the piece type
+      gameState.board[toRow][toCol].type = pieceType
+      
+      // Remove the modal
+      document.body.removeChild(modal)
+      
+      // Broadcast the move with promotion
+      broadcastMove(fromRow, fromCol, toRow, toCol, pieceType)
+      
+      document.removeEventListener('keydown', handleKeyPress)
+    }
+
+    if (selectedIndex !== -1) {
+      container.querySelectorAll('.piece-button').forEach((btn, idx) => {
+        btn.style.borderColor = idx === selectedIndex ? '#666' : '#ccc'
+      })
+    }
+  }
+
+  document.addEventListener('keydown', handleKeyPress)
 }
