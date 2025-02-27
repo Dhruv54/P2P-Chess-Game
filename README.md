@@ -2,7 +2,12 @@
 
 A real-time peer-to-peer chess game built with modern web technologies. Play chess with friends directly through your pc/laptop with no server required!
 
-![Chess Game Screenshot](chess/screenshots/gameplay.png)
+![Chess Game Screenshot](chess/Images/homepage.png)
+![Chess Game Screenshot](chess/Images/create_room.png)
+![Chess Game Screenshot](chess/Images/join_room.png)
+![Chess Game Screenshot](chess/Images/waiting_for_opponent.png)
+![Chess Game Screenshot](chess/Images/chess_board.png)
+![Chess Game Screenshot](chess/Images/chat.png)
 
 ## ✨ Features
 
