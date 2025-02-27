@@ -53,7 +53,8 @@ input:focus {
 }
 
 /* Main body styling */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100vh;
@@ -72,7 +73,8 @@ body {
 main {
   flex: 1;
   display: flex;
-  height: calc(100vh - 30px); /* Subtract titlebar height */
+  height: calc(100vh - 30px);
+  /* Subtract titlebar height */
   overflow: hidden;
 }
 
@@ -146,14 +148,16 @@ main {
   background-color: #f0f2f5;
   border-left: 1px solid #d1d7db;
   box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0; /* Prevent chat from shrinking */
+  flex-shrink: 0;
+  /* Prevent chat from shrinking */
 }
 
 .chat-header {
   background-color: #f0f2f5;
   padding: 16px;
   border-bottom: 1px solid #d1d7db;
-  flex-shrink: 0; /* Prevent header from shrinking */
+  flex-shrink: 0;
+  /* Prevent header from shrinking */
 }
 
 .chat-header h3 {
@@ -183,7 +187,8 @@ main {
   border-top: 1px solid #d1d7db;
   display: flex;
   gap: 8px;
-  flex-shrink: 0; /* Prevent form from shrinking */
+  flex-shrink: 0;
+  /* Prevent form from shrinking */
 }
 
 #message {
@@ -211,7 +216,7 @@ main {
   border-radius: 50%;
   width: 40px;
   height: 40px;
-  display: flex;
+  Merge changeMerge change display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -264,6 +269,36 @@ main {
   justify-content: center;
   align-items: center;
   position: relative;
+}
+
+/* Chess Square Styling */
+.chess-square {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.selected-piece {
+  background-color: rgba(255, 255, 0, 0.3) !important;
+}
+
+.possible-move {
+  position: relative;
+  cursor: pointer;
+}
+
+.move-indicator {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border: 3px solid gold;
 }
 
 /* Chess Piece Styling */
@@ -380,8 +415,13 @@ main {
 }
 
 @keyframes rotation {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Initial Setup Screen Styles */
@@ -504,10 +544,24 @@ main {
 }
 
 @keyframes dots {
-  0%, 20% { content: ''; }
-  40% { content: '.'; }
-  60% { content: '..'; }
-  80%, 100% { content: '...'; }
+
+  0%,
+  20% {
+    content: '';
+  }
+
+  40% {
+    content: '.';
+  }
+
+  60% {
+    content: '..';
+  }
+
+  80%,
+  100% {
+    content: '...';
+  }
 }
 
 /* Main Game Container Layout */
@@ -526,7 +580,8 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 0; /* Prevent flex item from overflowing */
+  min-width: 0;
+  /* Prevent flex item from overflowing */
 }
 
 /* Chat Section Styles */
@@ -705,8 +760,13 @@ body {
 }
 
 @keyframes backgroundMove {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(360deg); }
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 #stage-room-selection h2 {
@@ -720,8 +780,15 @@ body {
 }
 
 @keyframes titleFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .stage-content {
@@ -811,9 +878,17 @@ body {
 
 /* Add a subtle pulse animation to the buttons */
 @keyframes buttonPulse {
-  0% { box-shadow: 0 0 0 0 rgba(176, 217, 68, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(176, 217, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(176, 217, 68, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(176, 217, 68, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(176, 217, 68, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(176, 217, 68, 0);
+  }
 }
 
 .primary-btn:not(:hover) {
@@ -839,6 +914,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -866,8 +942,13 @@ body {
 }
 
 @keyframes lineExtend {
-  from { width: 0; }
-  to { width: 50px; }
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 50px;
+  }
 }
 
 .form-group {
@@ -912,6 +993,7 @@ body {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -998,13 +1080,27 @@ body {
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 0.6; }
+
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* Stage Room Setup Enhanced Styling */
@@ -1026,7 +1122,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
+  background:
     radial-gradient(circle at 20% 20%, rgba(176, 217, 68, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(176, 217, 68, 0.1) 0%, transparent 50%);
   pointer-events: none;
@@ -1034,8 +1130,15 @@ body {
 }
 
 @keyframes bgPulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .setup-form {
@@ -1043,7 +1146,7 @@ body {
   padding: 3rem;
   border-radius: 20px;
   border: 2px solid var(--accent-color);
-  box-shadow: 
+  box-shadow:
     0 0 30px rgba(176, 217, 68, 0.1),
     inset 0 0 20px rgba(176, 217, 68, 0.05);
   width: 100%;
@@ -1065,8 +1168,15 @@ body {
 }
 
 @keyframes borderGlow {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .setup-form h2 {
@@ -1092,8 +1202,17 @@ body {
 }
 
 @keyframes lineGlow {
-  0%, 100% { opacity: 0.5; width: 40px; }
-  50% { opacity: 1; width: 80px; }
+
+  0%,
+  100% {
+    opacity: 0.5;
+    width: 40px;
+  }
+
+  50% {
+    opacity: 1;
+    width: 80px;
+  }
 }
 
 .form-group {
@@ -1145,6 +1264,7 @@ body {
     opacity: 0;
     transform: scale(0.95) translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -1191,24 +1311,36 @@ body {
 }
 
 @keyframes dotPulse {
-  0%, 100% { transform: scale(0.8); opacity: 0.5; }
-  50% { transform: scale(1.2); opacity: 1; }
+
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
 
 /* Enhanced Buttons */
-.primary-btn, .secondary-btn {
+.primary-btn,
+.secondary-btn {
   position: relative;
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: center;
 }
 
-.primary-btn:hover, .secondary-btn:hover {
+.primary-btn:hover,
+.secondary-btn:hover {
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 10px 25px rgba(176, 217, 68, 0.2);
 }
 
-.primary-btn:active, .secondary-btn:active {
+.primary-btn:active,
+.secondary-btn:active {
   transform: translateY(1px) scale(0.98);
 }
 
@@ -1232,8 +1364,7 @@ body {
   transform: translateY(0);
 }
 
-#create-room-submit
-{
+#create-room-submit {
   margin-left: -21px;
 }
 

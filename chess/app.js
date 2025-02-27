@@ -27,7 +27,8 @@ const gameState = {
   gameStarted: false,
   roomCode: null,
   isRoomCreator: false,
-  game: null
+  game: null,
+  selectedPiece: null
 }
 
 // Cleanup handlers
@@ -298,10 +299,20 @@ function renderBoard() {
         square.appendChild(img)
       }
 
-      // Highlight valid moves
-      if (moves[position]) {
-        square.classList.add('valid-move')
-        debug(`Valid moves for ${position}: ${JSON.stringify(moves[position])}`, 'info')
+      // Highlight selected piece
+      if (gameState.selectedPiece === position) {
+        square.classList.add('selected-piece')
+      }
+
+      // Highlight possible moves for selected piece
+      if (gameState.selectedPiece && moves[gameState.selectedPiece] && 
+          moves[gameState.selectedPiece].includes(position)) {
+        square.classList.add('possible-move')
+        
+        // Add move indicator dot
+        const moveIndicator = document.createElement('div')
+        moveIndicator.className = 'move-indicator'
+        square.appendChild(moveIndicator)
       }
 
       chessBoard.appendChild(square)
@@ -342,26 +353,41 @@ function handleBoardClick(event) {
     return
   }
 
-  // Check if the clicked piece belongs to the player
   const piece = configuration.pieces[position]
+  
+  // If clicking on a possible move position for the selected piece
+  if (gameState.selectedPiece && configuration.moves[gameState.selectedPiece] && 
+      configuration.moves[gameState.selectedPiece].includes(position)) {
+    // Make the move
+    const move = gameState.game.move(gameState.selectedPiece, position)
+    broadcastMove(gameState.selectedPiece, position)
+    gameState.selectedPiece = null
+    renderBoard()
+    updateGameStatus()
+    playSound('moveSound')
+    return
+  }
+
+  // If clicking on a piece
   if (piece) {
     const isPieceWhite = piece === piece.toUpperCase()
     const isPlayerWhite = gameState.playerColor === 'white'
     
-    // If trying to move opponent's piece, return
+    // If trying to select opponent's piece, return
     if (isPieceWhite !== isPlayerWhite) {
       debug(`Cannot move opponent's pieces!`, 'error')
       return
     }
+
+    // Select the piece and show possible moves
+    gameState.selectedPiece = position
+    renderBoard()
+    return
   }
 
-  if (configuration.moves[position]) {
-    const move = gameState.game.move(position, configuration.moves[position][0])
-    broadcastMove(position, configuration.moves[position][0])
-    renderBoard()
-    updateGameStatus()
-    playSound('moveSound')
-  }
+  // If clicking on an empty square (not a valid move)
+  gameState.selectedPiece = null
+  renderBoard()
 }
 
 function updateGameStatus() {
