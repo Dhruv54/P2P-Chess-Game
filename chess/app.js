@@ -335,6 +335,26 @@ function handleBoardClick(event) {
   const position = square.dataset.position
   const configuration = gameState.game.exportJson()
 
+  // Check if it's player's turn
+  const isPlayerTurn = configuration.turn.toLowerCase() === gameState.playerColor
+  if (!isPlayerTurn) {
+    debug(`Not your turn! Current turn: ${configuration.turn}`, 'error')
+    return
+  }
+
+  // Check if the clicked piece belongs to the player
+  const piece = configuration.pieces[position]
+  if (piece) {
+    const isPieceWhite = piece === piece.toUpperCase()
+    const isPlayerWhite = gameState.playerColor === 'white'
+    
+    // If trying to move opponent's piece, return
+    if (isPieceWhite !== isPlayerWhite) {
+      debug(`Cannot move opponent's pieces!`, 'error')
+      return
+    }
+  }
+
   if (configuration.moves[position]) {
     const move = gameState.game.move(position, configuration.moves[position][0])
     broadcastMove(position, configuration.moves[position][0])
