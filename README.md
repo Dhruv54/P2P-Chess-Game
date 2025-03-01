@@ -26,11 +26,11 @@ A real-time peer-to-peer chess game built with modern web technologies. Play che
 - **Frontend**: HTML5, CSS3, JavaScript (ES6+)
 - **Game Engine**: [js-chess-engine](https://github.com/josefjadrny/js-chess-engine)
 - **P2P Networking**: [Hyperswarm](https://github.com/hyperswarm/hyperswarm)
+- **Pear by Holepunch** : [Pear](https://docs.pears.com/)
 
 ### Additional Libraries
 - hypercore-crypto
 - b4a
-- pear-interface
 
 ### Architecture
 - Peer-to-peer connection using Hyperswarm
