@@ -16,7 +16,6 @@ A real-time peer-to-peer chess game built with modern web technologies. Play che
 - **🔄 Automatic Board Perspective**: Correct orientation for both players
 - **💬 In-game Chat**: Communicate with your opponent during the match
 - **🔊 Sound Effects**: Immersive audio feedback for moves, checks, and game events
-- **👥 Room-based Matchmaking**: Create or join game rooms to connect with opponents
 - **🎮 Game State Synchronization**: Real-time state updates between players
 - **📊 Debug Panel**: Development tools for monitoring game state and connections
 
