@@ -1,129 +1,199 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>P2P Chess Game</title>
-    <link rel="stylesheet" href="./styles.css">
-    <script type='module' src='./app.js'></script>
-</head>
-<body>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
     <!-- Debug Panel -->
     <div id="debug-panel"></div>
 
     <!-- Title Bar -->
     <div id="titlebar">
-        <pear-ctrl></pear-ctrl>
+      <pear-ctrl></pear-ctrl>
     </div>
 
-     <!-- Add audio elements -->
-     <!-- <audio id="gameBackgroundSound" src="background.mp3" preload="auto" loop></audio> -->
-     <audio id="moveSound" src="move.mp3" preload="auto"></audio>
-     <audio id="checkSound" src="check.mp3" preload="auto"></audio>
-     <audio id="gameOverSound" src="game-over.mp3" preload="auto"></audio>
-     <audio id="gameStartSound" src="game-start.mp3" preload="auto"></audio>
-    
+    <!-- Add audio elements -->
+    <!-- <audio id="gameBackgroundSound" src="background.mp3" preload="auto" loop></audio> -->
+    <audio id="moveSound" src="move.mp3" preload="auto"></audio>
+    <audio id="checkSound" src="check.mp3" preload="auto"></audio>
+    <audio id="gameOverSound" src="game-over.mp3" preload="auto"></audio>
+    <audio id="gameStartSound" src="game-start.mp3" preload="auto"></audio>
+
     <main>
-        <!-- All game stages -->
-        <div id="game-stages">
-            <!-- Stage 1: Room Selection -->
-            <section id="stage-room-selection" class="stage">
-                <h2>Welcome to P2P Chess</h2>
-                <div class="stage-content">
-                    <button id="create-room-btn" class="primary-btn">Create Room</button>
-                    <div class="divider">or</div>
-                    <button id="join-room-btn" class="primary-btn">Join Room</button>
-                </div>
-            </section>
+      <!-- All game stages -->
+      <div id="game-stages">
+        <!-- Stage 1: Room Selection -->
+        <section id="stage-room-selection" class="stage">
+          <h2>Welcome to P2P Chess</h2>
+          <div class="stage-content">
+            <button id="create-room-btn" class="primary-btn">
+              Create Room
+            </button>
+            <div class="divider">or</div>
+            <button id="join-room-btn" class="primary-btn">Join Room</button>
+          </div>
+        </section>
 
-            <!-- Stage 2: Room Setup -->
-            <section id="stage-room-setup" class="stage hidden">
-                <!-- Create Room Form -->
-                <div id="create-room-form" class="setup-form hidden">
-                    <h2>Create New Room</h2>
-                    <div class="form-group">
-                        <input type="text" id="create-username" placeholder="Enter your username" style="margin-left: -27px;" required>
-                    </div>
-                    <div id="room-code-display-container" class="hidden">
-                        <p>Your Room Code:</p>
-                        <div class="room-code-group">
-                            <input type="text" id="room-code-display" style="margin-left: -25px;" readonly>
-                            <button id="copy-room-code" class="secondary-btn" style="margin-left: -10px;">📋</button>
-                        </div>
-                        <p class="waiting-text">Waiting for opponent to join....</p>
-                    </div>
-                    <button id="create-room-submit" class="primary-btn">Create Room</button>
-                </div>
+        <!-- Stage 2: Room Setup -->
+        <section id="stage-room-setup" class="stage hidden">
+          <!-- Create Room Form -->
+          <div id="create-room-form" class="setup-form hidden">
+            <h2>Select Game Mode</h2>
+            <div class="mode-options">
+              <button id="select-blitz" class="mode-btn">
+                <span class="mode-icon">⚡</span>
+                <span class="mode-title">Blitz Mode</span>
+                <span class="mode-description">5 minutes per player</span>
+              </button>
+              <button id="select-rapid" class="mode-btn">
+                <span class="mode-icon">🕒</span>
+                <span class="mode-title">Rapid Mode</span>
+                <span class="mode-description">25 minutes per player</span>
+              </button>
+            </div>
+            <h2>Create New Room</h2>
+            <div class="form-group">
+              <input
+                type="text"
+                id="create-username"
+                placeholder="Enter your username"
+                style="margin-left: -27px"
+                required
+              />
+            </div>
+            <div id="room-code-display-container" class="hidden">
+              <p>Your Room Code:</p>
+              <div class="room-code-group">
+                <input
+                  type="text"
+                  id="room-code-display"
+                  style="margin-left: -25px"
+                  readonly
+                />
+                <button
+                  id="copy-room-code"
+                  class="secondary-btn"
+                  style="margin-left: -10px"
+                >
+                  📋
+                </button>
+              </div>
+              <p class="waiting-text">Waiting for opponent to join....</p>
+            </div>
+            <button id="create-room-submit" class="primary-btn">
+              Create Room
+            </button>
+          </div>
+          <!-- Join Room Form -->
+          <div id="join-room-form" class="setup-form hidden">
+            <h2>Join Existing Room</h2>
+            <div class="form-group">
+              <input
+                type="text"
+                id="join-username"
+                placeholder="Enter your username"
+                required
+              />
+              <input
+                type="text"
+                id="room-code-input"
+                placeholder="Enter room code"
+                required
+              />
+            </div>
+            <button
+              id="join-room-submit"
+              class="primary-btn"
+              style="margin-left: -16px"
+            >
+              Join Room
+            </button>
+          </div>
+        </section>
 
-                <!-- Join Room Form -->
-                <div id="join-room-form" class="setup-form hidden">
-                    <h2>Join Existing Room</h2>
-                    <div class="form-group">
-                        <input type="text" id="join-username" placeholder="Enter your username" required>
-                        <input type="text" id="room-code-input" placeholder="Enter room code" required>
-                    </div>
-                    <button id="join-room-submit" class="primary-btn" style="margin-left: -16px;">Join Room</button>
-                </div>
-            </section>
+        <!-- Stage 3: Color Selection -->
+        <section id="stage-color-selection" class="stage hidden">
+          <h2>Choose Your Color</h2>
+          <div class="color-options">
+            <button id="select-white" class="color-btn">
+              <img src="chesspieces/wK.png" alt="White King" />
+              <span>Play as White</span>
+            </button>
+            <button id="select-black" class="color-btn">
+              <img src="chesspieces/bK.png" alt="Black King" />
+              <span>Play as Black</span>
+            </button>
+          </div>
+          <p id="color-selection-status" class="status-message"></p>
+        </section>
 
-            <!-- Stage 3: Color Selection -->
-            <section id="stage-color-selection" class="stage hidden">
-                <h2>Choose Your Color</h2>
-                <div class="color-options">
-                    <button id="select-white" class="color-btn">
-                        <img src="chesspieces/wK.png" alt="White King">
-                        <span>Play as White</span>
-                    </button>
-                    <button id="select-black" class="color-btn">
-                        <img src="chesspieces/bK.png" alt="Black King">
-                        <span>Play as Black</span>
-                    </button>
+        <!-- Stage 4: Game Interface -->
+        <section id="stage-game" class="stage hidden">
+          <div id="game-container">
+            <!-- Game Area -->
+            <div id="game-area">
+              <div id="game-header">
+                <div class="player-info" id="opponent-info">
+                  <span class="username"></span>
+                  <span class="color"></span>
+                  <div class="timer" id="opponent-timer">5:00</div>
                 </div>
-                <p id="color-selection-status" class="status-message"></p>
-            </section>
-
-            <!-- Stage 4: Game Interface -->
-            <section id="stage-game" class="stage hidden">
-                <div id="game-container">
-                    <!-- Game Area -->
-                    <div id="game-area">
-                        <div id="game-header">
-                            <div class="player-info" id="opponent-info">
-                                <span class="username"></span>
-                                <span class="color"></span>
-                            </div>
-                            <div id="game-status"></div>
-                            <div class="player-info" id="player-info">
-                                <span class="username"></span>
-                                <span class="color"></span>
-                            </div>
-                        </div>
-                        <div id="chess-board" class="chess-board"></div>
-                    </div>
-                    
-                    <!-- Chat Area -->
-                    <div id="chat-area">
-                        <div class="chat-header">
-                            <h3>Chat</h3>
-                            <div class="connection-status">
-                                Connected Players: <span id="peers-count">0</span>
-                            </div>
-                        </div>
-                        <div id="messages" class="messages-container"></div>
-                        <form id="message-form" class="message-form">
-                            <input type="text" id="message" placeholder="Type a message..." required>
-                            <button type="submit" class="send-btn">Send</button>
-                        </form>
-                    </div>
+                <div id="game-status"></div>
+                <div class="player-info" id="player-info">
+                  <span class="username"></span>
+                  <span class="color"></span>
+                  <div class="timer" id="player-timer">5:00</div>
                 </div>
-            </section>
-        </div>
+              </div>
+              <div id="chess-board" class="chess-board"></div>
+            </div>
 
-        <!-- Loading Overlay -->
-        <div id="loading" class="loading-overlay hidden">
-            <div class="loader"></div>
-            <p id="loading-text">Connecting...</p>
-        </div>
+            <!-- Chat Area -->
+            <div id="chat-area">
+              <div class="chat-header">
+                <h3>Chat</h3>
+                <div class="connection-status">
+                  Connected Players: <span id="peers-count">0</span>
+                </div>
+              </div>
+              <div id="messages" class="messages-container"></div>
+              <form id="message-form" class="message-form">
+                <input
+                  type="text"
+                  id="message"
+                  placeholder="Type a message..."
+                  required
+                />
+                <button type="submit" class="send-btn">Send</button>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Loading Overlay -->
+      <div id="loading" class="loading-overlay hidden">
+        <div class="loader"></div>
+        <p id="loading-text">Connecting...</p>
+      </div>
     </main>
-</body>
+    
+    <div id="result-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title">Game Result</h2>
+        </div>
+        <div class="modal-body">
+          <p id="modal-message"></p>
+        </div>
+        <div class="modal-footer">
+          <button id="restart-game" class="primary-btn">Play Again</button>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>
 
 <!-- Sound Effect by <a href="https://pixabay.com/users/universfield-28281460/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=144751">Universfield</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=144751">Pixabay</a> -->
