@@ -8,11 +8,11 @@
   <body>
     <!-- Debug Panel -->
     <div id="debug-panel"></div>
-
+    <pear-ctrl></pear-ctrl>
     <!-- Title Bar -->
-    <div id="titlebar">
-      <pear-ctrl></pear-ctrl>
-    </div>
+    <!-- <div id="titlebar">
+    
+    </div> -->
 
     <!-- Add audio elements -->
     <!-- <audio id="gameBackgroundSound" src="background.mp3" preload="auto" loop></audio> -->
@@ -45,12 +45,12 @@
               <button id="select-blitz" class="mode-btn">
                 <span class="mode-icon">⚡</span>
                 <span class="mode-title">Blitz Mode</span>
-                <span class="mode-description">5 minutes per player</span>
+                <!-- <span class="mode-description">5 minutes per player</span> -->
               </button>
               <button id="select-rapid" class="mode-btn">
                 <span class="mode-icon">🕒</span>
                 <span class="mode-title">Rapid Mode</span>
-                <span class="mode-description">25 minutes per player</span>
+                <!-- <span class="mode-description">25 minutes per player</span> -->
               </button>
             </div>
             <h2>Create New Room</h2>
@@ -155,7 +155,7 @@
               <div class="chat-header">
                 <h3>Chat</h3>
                 <div class="connection-status">
-                  Connected Players: <span id="peers-count">0</span>
+                  Connected
                 </div>
               </div>
               <div id="messages" class="messages-container"></div>
@@ -166,7 +166,7 @@
                   placeholder="Type a message..."
                   required
                 />
-                <button type="submit" class="send-btn">Send</button>
+                <button type="submit" class="send-btn"></button>
               </form>
             </div>
           </div>
