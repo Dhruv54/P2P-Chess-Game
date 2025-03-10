@@ -11,13 +11,14 @@ A real-time peer-to-peer chess game built with modern web technologies. Play che
 
 ## ✨ Features
 
-- **♟️ Real-time P2P Gameplay**: Play chess with anyone, anywhere using decentralized P2P networking
-- **🎯 Valid Move Highlighting**: Visual feedback for possible moves
-- **🔄 Automatic Board Perspective**: Correct orientation for both players
-- **💬 In-game Chat**: Communicate with your opponent during the match
-- **🔊 Sound Effects**: Immersive audio feedback for moves, checks, and game events
-- **🎮 Game State Synchronization**: Real-time state updates between players
-- **📊 Debug Panel**: Development tools for monitoring game state and connections
+- **Real-time P2P Gameplay**: Play chess with anyone, anywhere using decentralized P2P networking
+- **Play with Your Friend** : create room or join existing room using room token
+- **Play with Stranger** : play chess with random person on public room
+- **Valid Move Highlighting**: Visual feedback for possible moves
+- **In-game Timer**: Multiple game modes based on time
+- **In-game Chat**: Communicate with your opponent during the match
+- **Sound Effects**: Immersive audio feedback for moves, checks, and game events
+- **Game State Synchronization**: Real-time state updates between players
 
 ## 🛠 Tech Stack
 
@@ -83,6 +84,10 @@ A real-time peer-to-peer chess game built with modern web technologies. Play che
    - Enter the game ID shared by your friend
    - Wait for connection
 
+2. **Play With Stranger**:
+   - Click "Play With Stranger"
+   - Wait for opponent to join
+
 3. **Playing**:
    - The creator plays as White
    - The joiner plays as Black
@@ -111,14 +116,9 @@ The debug panel provides real-time information about:
 ## 🎯 Features in Development
 
 - [ ] Move history and notation
-- [ ] Game clock integration
 - [ ] Spectator mode
 - [ ] Game analysis tools
-- [ ] Multiple game rooms
-- [ ] Theme switcher
-- [ ] Responsive design
-- [ ] Piece move animations
-- [ ] Sound effects enhancement
+- [ ] Rating based match-making
 
 ## 🤝 Contributing
 
