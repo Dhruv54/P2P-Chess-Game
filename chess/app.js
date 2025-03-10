@@ -36,6 +36,12 @@ const gameState = {
     activeTimer: null, // interval ID for the active timer
     lastMoveTime: null, // timestamp of the last move
   },
+  matchmaking: {
+    topic: null,
+    searching: false,
+    publicRoomPrefix: "chess-public-",
+    roomNumber: null,
+  },
 };
 
 // Cleanup handlers
@@ -144,9 +150,191 @@ function setupEventListeners() {
     setupRoomEventListeners();
     setupGameInterfaceListeners();
     debug("Event listeners setup completed", "success");
+
+    const playStrangerBtn = document.getElementById("play-stranger-btn");
+    playStrangerBtn.addEventListener("click", startMatchmaking);
   } catch (error) {
     debug(`Error setting up event listeners: ${error.message}`, "error");
   }
+}
+
+// Add these new functions for matchmaking
+async function startMatchmaking() {
+  try {
+    debug("Starting matchmaking process...", "info");
+    showLoading("Finding opponent...");
+    gameState.matchmaking.searching = true;
+
+    debug("Requesting username for matchmaking...", "info");
+    // Get username first
+    const username = await getUsernameForMatchmaking();
+    if (!username) {
+      debug("Matchmaking cancelled - no username provided", "info");
+      hideLoading();
+      return;
+    }
+    gameState.username = username;
+    debug(`Username set: ${username}`, "success");
+
+    debug("Beginning opponent search...", "info");
+    // Start searching for opponent
+    searchForOpponent();
+  } catch (error) {
+    debug(`Matchmaking error: ${error.message}`, "error");
+    hideLoading();
+  }
+}
+
+function getUsernameForMatchmaking() {
+  return new Promise((resolve) => {
+    // Create modal for username input
+    const modal = document.createElement("div");
+    modal.className = "modal visible";
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Enter Your Username</h2>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="matchmaking-username" 
+                 placeholder="Enter username" class="form-input"
+                 style="width: 100%; margin-bottom: 20px;">
+        </div>
+        <div class="modal-footer">
+          <button id="start-matchmaking" class="primary-btn">Start Matchmaking</button>
+          <button id="cancel-matchmaking" class="secondary-btn">Cancel</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const usernameInput = modal.querySelector("#matchmaking-username");
+    const startButton = modal.querySelector("#start-matchmaking");
+    const cancelButton = modal.querySelector("#cancel-matchmaking");
+
+    startButton.addEventListener("click", () => {
+      const username = usernameInput.value.trim();
+      if (username) {
+        document.body.removeChild(modal);
+        resolve(username);
+      } else {
+        usernameInput.classList.add("error");
+      }
+    });
+
+    cancelButton.addEventListener("click", () => {
+      document.body.removeChild(modal);
+      resolve(null);
+    });
+
+    usernameInput.focus();
+  });
+}
+
+async function searchForOpponent() {
+  try {
+    debug("Initializing public room search...", "info");
+    // Generate room numbers 1-10 for public matchmaking
+    const publicRooms = Array.from({ length: 3 }, (_, i) => i + 1);
+    let foundMatch = false;
+
+    // Try joining each public room
+    for (const roomNum of publicRooms) {
+      if (foundMatch) break;
+
+      debug(`Attempting to join public room ${roomNum}...`, "info");
+      const roomTopic = generatePublicRoomTopic(roomNum);
+      gameState.matchmaking.roomNumber = roomNum;
+
+      try {
+        // Try to join the room
+        debug(
+          `Joining room ${roomNum} with topic: ${b4a.toString(
+            roomTopic,
+            "hex"
+          )}`,
+          "info"
+        );
+
+        const discovery = swarm.join(roomTopic, { client: true, server: true });
+        await discovery.flushed();
+
+        debug(`Successfully joined room ${roomNum}`, "success");
+
+        debug(`Waiting for opponent in room ${roomNum}...`, "info");
+        // Wait a short time to see if we connect to an opponent
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        if (swarm.connections.size > 0) {
+          // Found an opponent
+          foundMatch = true;
+          gameState.matchmaking.topic = roomTopic;
+          debug(`Matched in public room ${roomNum}`, "success");
+          debug(
+            `Successfully matched with opponent in room ${roomNum}!`,
+            "success"
+          );
+          debug(`Current connections: ${swarm.connections.size}`, "info");
+          return;
+        } else {
+          debug(`No opponent found in room ${roomNum}, leaving...`, "info");
+
+          // No opponent found, leave this room
+          swarm.leave(roomTopic);
+          debug(`Left room ${roomNum}`, "info");
+        }
+      } catch (err) {
+        debug(`Failed to join public room ${roomNum}: ${err.message}`, "error");
+        continue;
+      }
+    }
+    if (!foundMatch) {
+      // If no match found, create a new room and wait
+      const roomNum = Math.floor(Math.random() * 3) + 1;
+      debug(
+        `No match found in existing rooms. Creating new room ${roomNum}...`,
+        "info"
+      );
+
+      const roomTopic = generatePublicRoomTopic(roomNum);
+      gameState.matchmaking.roomNumber = roomNum;
+      gameState.matchmaking.topic = roomTopic;
+
+      debug(
+        `Joining new room ${roomNum} with topic: ${b4a.toString(
+          roomTopic,
+          "hex"
+        )}`,
+        "info"
+      );
+
+      const discovery = swarm.join(roomTopic, { client: true, server: true });
+      await discovery.flushed();
+
+      debug(`Successfully created and joined room ${roomNum}`, "success");
+
+      gameState.isRoomCreator = true;
+      gameState.gameMode = "blitz";
+      showLoading("Waiting for opponent...");
+      debug("Waiting for opponent to join...", "info");
+    }
+  } catch (error) {
+    debug(`Matchmaking error: ${error.message}`, "error");
+    hideLoading();
+  }
+}
+
+function generatePublicRoomTopic(roomNumber) {
+  // Create a consistent topic for public rooms
+  const publicRoomId = `${gameState.matchmaking.publicRoomPrefix}${roomNumber}`;
+  //return crypto.createHash('sha256').update(publicRoomId).digest();
+  debug(`Generating topic for public room ID: ${publicRoomId}`, "info");
+
+  const buffer = b4a.from(publicRoomId);
+  const topic = crypto.data(buffer);
+
+  debug(`Generated topic: ${b4a.toString(topic, "hex")}`, "info");
+  return topic;
 }
 
 function setupRoomEventListeners() {
@@ -249,27 +437,51 @@ function setupGameInterfaceListeners() {
 
 // P2P Communication
 swarm.on("connection", (peer) => {
+  debug(`New peer connection established`, "success");
+  debug(`Current connections: ${swarm.connections.size}`, "info");
+
   if (swarm.connections.size > 1) {
+    debug("More than one connection, destroying peer", "info");
     peer.destroy();
     return;
   }
 
   debug("Peer connected", "success");
 
+  // Hide loading screen immediately when connection is established
+  hideLoading();
+
+  // if (gameState.matchmaking.searching) {
+  //   debug("Connection established during matchmaking", "success");
+
+  //   gameState.playerColor = "white";
+  //   gameState.opponentInfo.color = "black";
+  //   debug(`Assigned colors - Player: ${gameState.playerColor}, Opponent: ${gameState.opponentInfo.color}`, "info");
+
+  //   
+
+  //   // Send game mode to joiner
+  //   const modeMessage = {
+  //     type: "mode",
+  //     mode: "blitz",
+  //   };
+  //   peer.write(b4a.from(JSON.stringify(modeMessage)));
+  // }
+  // else
   if (gameState.isRoomCreator) {
     gameState.playerColor = "white";
     gameState.opponentInfo.color = "black";
-
+    gameState.matchmaking.searching = false;
     // Send game mode to joiner
     const modeMessage = {
-      type: 'mode',
-      mode: gameState.gameMode
-    }
-    peer.write(b4a.from(JSON.stringify(modeMessage)))
-
+      type: "mode",
+      mode: gameState.gameMode,
+    };
+    peer.write(b4a.from(JSON.stringify(modeMessage)));
   } else {
     gameState.playerColor = "black";
     gameState.opponentInfo.color = "white";
+    gameState.matchmaking.searching = false;
   }
 
   peer.on("data", (data) => {
@@ -285,15 +497,15 @@ swarm.on("connection", (peer) => {
         case "chat":
           handleChatMessage(message);
           break;
-        case 'mode':
-          handleModeMessage(message)
+        case "mode":
+          handleModeMessage(message);
           break;
-        case 'restart':
+        case "restart":
           handleRestartMessage();
           break;
       }
     } catch (e) {
-      debug(`Error handling message: ${e.message}`, "error");
+      debug(`Error handling message: `, "error");
     }
   });
 
@@ -302,36 +514,46 @@ swarm.on("connection", (peer) => {
   // For room creator, game is started after mode selection
   // For joiner, game starts when they receive mode from creator
   if (gameState.isRoomCreator || gameState.gameMode) {
-    startGame()
+    startGame();
   }
 });
 
+// Add disconnection handler with debug
+swarm.on("disconnection", (peer) => {
+  debug(`Peer disconnected`, "warning");
+  debug(`Remaining connections: ${swarm.connections.size}`, "info");
+
+  if (gameState.matchmaking.searching) {
+    debug("Disconnection during matchmaking, resuming search...", "info");
+    searchForOpponent();
+  }
+});
 // Add handler for restart message
 function handleRestartMessage() {
   // Reset game state
   gameState.game = new Game();
   gameState.selectedPiece = null;
   gameState.gameStarted = true;
-  
+
   // Reset timers based on game mode
-  if (gameState.gameMode === 'blitz') {
+  if (gameState.gameMode === "blitz") {
     gameState.timers.white = 5 * 60;
     gameState.timers.black = 5 * 60;
   } else {
     gameState.timers.white = 25 * 60;
     gameState.timers.black = 25 * 60;
   }
-  
+
   // Hide any modal that might be shown
   hideResultModal();
-  
+
   // Render fresh board
   renderBoard();
   updateGameStatus();
-  
+
   // Start timer for white (first player)
-  startTimer('white');
-  
+  startTimer("white");
+
   // Play start sound
   playSound("gameStartSound");
   debug("Game restarted by opponent", "info");
@@ -339,28 +561,30 @@ function handleRestartMessage() {
 
 // Handle receiving game mode from creator
 function handleModeMessage(message) {
-  gameState.gameMode = message.mode
-  debug(`Received game mode: ${message.mode}`, 'info')
-  
+  gameState.gameMode = message.mode;
+  debug(`Received game mode: ${message.mode}`, "info");
+
   // Set timer values based on received mode
-  if (message.mode === 'blitz') {
+  if (message.mode === "blitz") {
     gameState.timers.white = 5 * 60;
     gameState.timers.black = 5 * 60;
   } else {
     gameState.timers.white = 25 * 60;
     gameState.timers.black = 25 * 60;
   }
-  
+
+  // Hide loading screen and start game
+  hideLoading();
   // Start the game if not already started
   if (!gameState.gameStarted) {
-    startGame()
+    startGame();
   }
 }
 
 function startGame() {
   gameState.gameStarted = true;
   gameState.game = new Game();
-  
+
   showStage("game");
 
   debug("Starting new game", "info");
@@ -371,6 +595,7 @@ function startGame() {
   debug(JSON.stringify(config.pieces, null, 2), "info");
 
   updatePlayerInfo("player-info", gameState.username, gameState.playerColor);
+  // TODO :Dhruv share username so they can display
   updatePlayerInfo(
     "opponent-info",
     gameState.opponentInfo.username,
@@ -379,78 +604,97 @@ function startGame() {
 
   renderBoard();
   updateGameStatus();
-  startTimer('white') // White always moves first
+  startTimer("white"); // White always moves first
   playSound("gameStartSound");
   debug("Game started", "success");
 }
 
 function startTimer(color) {
+  debug(`Starting timer for ${color}`, "info");
+
+  // Don't start timer if in matchmaking or game not started
+  if (gameState.matchmaking.searching) {
+    debug("Timer start prevented - still in matchmaking", "warning");
+    return;
+  }
+
+  if (!gameState.gameStarted) {
+    debug("Timer start prevented - game not started", "warning");
+    return;
+  }
+
   // Clear any existing timer
   if (gameState.timers.activeTimer) {
-    clearInterval(gameState.timers.activeTimer)
+    clearInterval(gameState.timers.activeTimer);
   }
-  
-  gameState.timers.lastMoveTime = Date.now()
-  
+
+  gameState.timers.lastMoveTime = Date.now();
+
   gameState.timers.activeTimer = setInterval(() => {
     // Decrement time
-    gameState.timers[color]--
-    
+    gameState.timers[color]--;
+
     // Update display
-    const isPlayerTimer = (gameState.playerColor === color)
-    const timerElement = document.getElementById(isPlayerTimer ? 'player-timer' : 'opponent-timer')
-    timerElement.textContent = formatTime(gameState.timers[color])
-    
+    const isPlayerTimer = gameState.playerColor === color;
+    const timerElement = document.getElementById(
+      isPlayerTimer ? "player-timer" : "opponent-timer"
+    );
+    timerElement.textContent = formatTime(gameState.timers[color]);
+
     // Add warning class when time is low (< 30 seconds)
     if (gameState.timers[color] < 30) {
-      timerElement.classList.add('low')
+      timerElement.classList.add("low");
     }
-    
+
     // Check for time out
     if (gameState.timers[color] <= 0) {
-      clearInterval(gameState.timers.activeTimer)
-      handleTimeout(color)
+      clearInterval(gameState.timers.activeTimer);
+      handleTimeout(color);
     }
-  }, 1000)
+  }, 1000);
 }
 
 function stopTimer() {
   if (gameState.timers.activeTimer) {
-    clearInterval(gameState.timers.activeTimer)
-    gameState.timers.activeTimer = null
+    clearInterval(gameState.timers.activeTimer);
+    gameState.timers.activeTimer = null;
   }
 }
 
 function formatTime(seconds) {
-  const minutes = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${secs
+    .toString()
+    .padStart(2, "0")}`;
 }
 
 function handleTimeout(color) {
-  const winner = color === 'white' ? 'Black' : 'White'
-  const status = document.getElementById('game-status')
-  status.textContent = `Time's up! ${winner} wins!`
-  playSound('gameOverSound')
-  gameState.gameStarted = false
+  const winner = color === "white" ? "Black" : "White";
+  const status = document.getElementById("game-status");
+  status.textContent = `Time's up! ${winner} wins!`;
+  playSound("gameOverSound");
+  gameState.gameStarted = false;
   stopTimer();
 
   // Show modal instead of alert
   const message = `<span class="winner">${winner}</span> wins by timeout!<br>
-                   <span class="loser">${color === 'white' ? 'White' : 'Black'}</span> ran out of time.`;
+                   <span class="loser">${
+                     color === "white" ? "White" : "Black"
+                   }</span> ran out of time.`;
   showResultModal(message, winner.toLowerCase());
 
   // Notify the opponent
   const timeoutMessage = {
-    type: 'timeout',
-    loser: color
-  }
-  
-  const peers = [...swarm.connections]
+    type: "timeout",
+    loser: color,
+  };
+
+  const peers = [...swarm.connections];
   for (const peer of peers) {
-    peer.write(b4a.from(JSON.stringify(timeoutMessage)))
+    peer.write(b4a.from(JSON.stringify(timeoutMessage)));
   }
-  
+
   //setTimeout(() => alert(`Time's up! ${winner} wins!`), 100)
 }
 
@@ -583,10 +827,10 @@ function handleBoardClick(event) {
     playSound("moveSound");
 
     // Switch timer
-    const currentColor = configuration.turn === 'WHITE' ? 'white' : 'black'
-    const nextColor = currentColor === 'white' ? 'black' : 'white'
-    stopTimer()
-    startTimer(nextColor)
+    const currentColor = configuration.turn === "WHITE" ? "white" : "black";
+    const nextColor = currentColor === "white" ? "black" : "white";
+    stopTimer();
+    startTimer(nextColor);
 
     return;
   }
@@ -613,9 +857,33 @@ function handleBoardClick(event) {
   renderBoard();
 }
 
-function updateGameStatus() 
-{
+function updateGameStatus() {
   const status = document.getElementById("game-status");
+  // Handle matchmaking status
+  if (gameState.matchmaking.searching) {
+    debug("Updating status for matchmaking", "info");
+    if (swarm.connections.size > 0) {
+      status.textContent = "Opponent found! Starting game...";
+      debug("Status updated: Opponent found", "success");
+    } else {
+      status.textContent = "Searching for opponent...";
+      debug("Status updated: Searching", "info");
+    }
+    return;
+  }
+
+  // Handle game not started
+  if (!gameState.gameStarted) {
+    if (swarm.connections.size === 0) {
+      status.textContent = "Waiting for opponent...";
+      debug("Status updated: Waiting for opponent", "info");
+    } else {
+      status.textContent = "Opponent connected. Game starting...";
+      debug("Status updated: Game starting", "success");
+    }
+    return;
+  }
+
   const configuration = gameState.game.exportJson();
 
   if (!gameState.gameStarted) {
@@ -641,7 +909,7 @@ function updateGameStatus()
 
     const winner = configuration.turn === "WHITE" ? "Black" : "White";
     const loser = configuration.turn === "WHITE" ? "White" : "Black";
-    
+
     // Show modal instead of alert
     const message = `<span class="winner">${winner}</span> wins by checkmate!<br>
                      <span class="loser">${loser}</span> has been checkmated.`;
@@ -670,28 +938,28 @@ function handleGameMessage(message) {
     playSound("moveSound");
 
     // Switch timer
-    const configuration = gameState.game.exportJson()
-    const currentColor = configuration.turn === 'WHITE' ? 'white' : 'black'
-    stopTimer()
-    startTimer(currentColor)
+    const configuration = gameState.game.exportJson();
+    const currentColor = configuration.turn === "WHITE" ? "white" : "black";
+    stopTimer();
+    startTimer(currentColor);
   }
 }
 
 function handleTimeOutMessage(message) {
-  if (message.type === "timeout") 
-  {
+  if (message.type === "timeout") {
     // Handle timeout notification from opponent
-    const winner = message.loser === 'white' ? 'Black' : 'White'
-    const status = document.getElementById('game-status')
-    status.textContent = `Time's up! ${winner} wins!`
-    playSound('gameOverSound')
-    gameState.gameStarted = false
-    stopTimer()
-    
-        
+    const winner = message.loser === "white" ? "Black" : "White";
+    const status = document.getElementById("game-status");
+    status.textContent = `Time's up! ${winner} wins!`;
+    playSound("gameOverSound");
+    gameState.gameStarted = false;
+    stopTimer();
+
     // Show modal instead of alert
     const message = `<span class="winner">${winner}</span> wins by timeout!<br>
-                     <span class="loser">${message.loser === 'white' ? 'White' : 'Black'}</span> ran out of time.`;
+                     <span class="loser">${
+                       message.loser === "white" ? "White" : "Black"
+                     }</span> ran out of time.`;
     showResultModal(message, winner.toLowerCase());
   }
 }
@@ -806,32 +1074,31 @@ function updatePlayerInfo(elementId, username, color) {
   element.querySelector(".color").textContent = `Playing as ${color}`;
 }
 
-
 // Show modal with game result
 function showResultModal(message, winnerColor) {
-  const modal = document.getElementById('result-modal');
-  const modalMessage = document.getElementById('modal-message');
-  
+  const modal = document.getElementById("result-modal");
+  const modalMessage = document.getElementById("modal-message");
+
   // Set the message
   modalMessage.innerHTML = message;
-  
+
   // Show the modal
-  modal.classList.remove('hidden');
-  modal.classList.add('visible');
-  
+  modal.classList.remove("hidden");
+  modal.classList.add("visible");
+
   // Setup restart button
-  const restartButton = document.getElementById('restart-game');
-  restartButton.addEventListener('click', restartGame, { once: true });
+  const restartButton = document.getElementById("restart-game");
+  restartButton.addEventListener("click", restartGame, { once: true });
 }
 
 // Hide the modal
 function hideResultModal() {
-  const modal = document.getElementById('result-modal');
-  modal.classList.remove('visible');
-  
+  const modal = document.getElementById("result-modal");
+  modal.classList.remove("visible");
+
   // Use a slight delay to allow for the fade-out animation
   setTimeout(() => {
-    modal.classList.add('hidden');
+    modal.classList.add("hidden");
   }, 300);
 }
 
@@ -839,31 +1106,31 @@ function hideResultModal() {
 function restartGame() {
   // Hide the modal
   hideResultModal();
-  
+
   // Reset game state
   gameState.game = new Game();
   gameState.selectedPiece = null;
   gameState.gameStarted = true;
-  
+
   // Reset timers based on selected game mode
-  if (gameState.gameMode === 'blitz') {
+  if (gameState.gameMode === "blitz") {
     gameState.timers.white = 5 * 60;
     gameState.timers.black = 5 * 60;
   } else {
     gameState.timers.white = 25 * 60;
     gameState.timers.black = 25 * 60;
   }
-  
+
   // Broadcast restart to opponent
   broadcastRestart();
 
   // Render fresh board
   renderBoard();
   updateGameStatus();
-  
+
   // Start timer for white (first player)
-  startTimer('white');
-  
+  startTimer("white");
+
   // Play start sound
   playSound("gameStartSound");
   debug("Game restarted", "success");
@@ -872,7 +1139,7 @@ function restartGame() {
 // Add this function to broadcast restart
 function broadcastRestart() {
   const restartMessage = {
-    type: "restart"
+    type: "restart",
   };
 
   const peers = [...swarm.connections];
